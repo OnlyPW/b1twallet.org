@@ -1,0 +1,32 @@
+/* Additional custom styles */
+.logo-glow {
+  filter: drop-shadow(0 0 20px rgba(255, 107, 0, 0.6));
+  animation: logo-pulse 3s ease-in-out infinite;
+}
+
+@keyframes logo-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 107, 0, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(255, 107, 0, 0.8));
+  }
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, #FF6B00, #FF9D50);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+

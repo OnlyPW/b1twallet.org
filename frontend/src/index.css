@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-dark text-white antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  * {
+    @apply scrollbar-thin scrollbar-thumb-b1t-orange scrollbar-track-dark-300;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-orange text-white shadow-lg hover:shadow-xl hover:shadow-b1t-orange/50;
+  }
+
+  .btn-secondary {
+    @apply btn bg-dark-200 text-white border border-b1t-orange/30 hover:border-b1t-orange hover:bg-dark-100;
+  }
+
+  .card {
+    @apply bg-dark-300 rounded-xl p-6 shadow-xl border border-dark-200 backdrop-blur-sm;
+  }
+
+  .input {
+    @apply w-full px-4 py-3 bg-dark-200 border border-dark-100 rounded-lg text-white placeholder-gray-400 
+           focus:outline-none focus:ring-2 focus:ring-b1t-orange focus:border-transparent transition-all;
+  }
+
+  .glow-text {
+    @apply text-transparent bg-clip-text bg-gradient-orange;
+  }
+}
+
+/* Custom Scrollbar */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-thumb-b1t-orange::-webkit-scrollbar-thumb {
+    @apply bg-b1t-orange rounded-full;
+  }
+
+  .scrollbar-track-dark-300::-webkit-scrollbar-track {
+    @apply bg-dark-300 rounded-full;
+  }
+}
+
+/* Loading Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(to right, #1A1A1A 4%, #2A2A2A 25%, #1A1A1A 36%);
+  background-size: 1000px 100%;
+}
+
+

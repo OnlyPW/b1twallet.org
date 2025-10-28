@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # B1T Core Node (bereits vorhanden - nur Referenz)
+  # bitcore:
+  #   container_name: bitcore
+  #   image: your-bitcore-image
+  #   ports:
+  #     - "8332:8332"
+  #     - "8333:8333"
+  #   volumes:
+  #     - ./bit.conf:/root/.bit/bit.conf
+
+  # Backend - RPC Proxy
+  wallet-backend:
+    container_name: b1t-wallet-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - RPC_HOST=host.docker.internal
+      - RPC_PORT=8332
+      - RPC_USER=user
+      - RPC_PASSWORD=changeme
+      - PORT=3001
+      - CORS_ORIGIN=http://localhost:3000
+      # Database
+      - DB_HOST=b1t-db
+      - DB_PORT=5432
+      - DB_USER=b1t
+      - DB_PASSWORD=b1tpass
+      - DB_NAME=b1twallet
+      # Indexer
+      - INDEXER_ENABLED=true
+      - INDEXER_START_HEIGHT=0
+    networks:
+      - b1t-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - b1t-db
+    restart: unless-stopped
+
+  # Frontend - React App
+  wallet-frontend:
+    container_name: b1t-wallet-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=https://b1twallet.org
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - b1t-network
+    depends_on:
+      - wallet-backend
+    restart: unless-stopped
+
+  # Database - PostgreSQL
+  b1t-db:
+    container_name: b1t-db
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=b1t
+      - POSTGRES_PASSWORD=b1tpass
+      - POSTGRES_DB=b1twallet
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - b1t-network
+    restart: unless-stopped
+
+networks:
+  b1t-network:
+    driver: bridge
+
+volumes:
+  node_modules_backend:
+  node_modules_frontend:
+  pgdata:
+
+

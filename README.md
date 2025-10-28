@@ -2,7 +2,8 @@
 
 **Modern, non-custodial web wallet for B1T Blockchain with Ordinals support**
 
-![B1T Logo](B1T-logo.png)
+<img width="2044" height="1662" alt="grafik" src="https://github.com/user-attachments/assets/53416253-bdc5-4331-ac94-5853009c5a45" />
+
 
 ---
 

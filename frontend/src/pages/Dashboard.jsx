@@ -88,7 +88,7 @@ export default function Dashboard() {
         let mnemonic;
         try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
         if (mnemonic) {
-          const xp = await walletApi.deriveXpub(mnemonic);
+          const xp = await walletApi.deriveXpub(mnemonic, 0);  // Account 0 verwenden
           if (xp?.success) setXpub(xp.xpub);
         }
       } catch {}

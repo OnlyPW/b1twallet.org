@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wallet, Home, Send, Download, Menu, X, AlertTriangle } from 'lucide-react';
+import { Wallet, Home, Send, Download, Menu, X, AlertTriangle, Image, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useWalletStore from '../store/walletStore';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,8 @@ export default function Layout() {
     // Added Addresses tab
     { name: t('nav.addresses'), href: '/addresses', icon: Wallet, requiresAuth: true },
     { name: t('nav.explorer'), href: '/explorer', icon: Wallet, requiresAuth: false },
+    { name: t('nav.ordinals'), href: '/ordinals', icon: Image, requiresAuth: true },
+    { name: 'B1T-20 Mint', href: '/b1t20-mint', icon: Coins, requiresAuth: true },
     { name: t('nav.mempool'), href: '/mempool', icon: Wallet, requiresAuth: false },
   ];
 

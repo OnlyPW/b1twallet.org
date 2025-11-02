@@ -39,4 +39,16 @@ coverage/
 tmp/
 temp/
 
+# B1T specific - External libraries node_modules
+backend/B1T-20-Library/node_modules/
+backend/Extern/*/node_modules/
+
+# B1T specific - Development files
+*.seed
+seed.txt
+.wallet*.json
+compressed-ord*.jpg
+test-*.js
+*_test*.js
+
 

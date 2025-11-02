@@ -1,0 +1,675 @@
+#!/usr/bin/env node
+
+let bitcore
+try {
+    bitcore = require('bitcore-lib-b1t')
+} catch (e) {
+    console.error('❌ bitcore-lib-b1t nicht gefunden. Bitte installieren Sie: npm install bitcore-lib-b1t')
+    process.exit(1)
+}
+const axios = require('axios')
+const fs = require('fs')
+const dotenv = require('dotenv')
+const mime = require('mime-types')
+const express = require('express')
+const { PrivateKey, Address, Transaction, Script, Opcode } = bitcore
+const { Hash, Signature } = bitcore.crypto
+
+dotenv.config()
+
+if (process.env.TESTNET == 'true') {
+    bitcore.Networks.defaultNetwork = bitcore.Networks.testnet
+}
+
+if (process.env.FEE_PER_KB) {
+    Transaction.FEE_PER_KB = parseInt(process.env.FEE_PER_KB)
+} else {
+    Transaction.FEE_PER_KB = 100000000
+}
+
+const WALLET_PATH = process.env.WALLET || '.wallet.json'
+
+// RPC helper for B1T node
+const rpcAuthOptions = {
+    auth: {
+        username: process.env.NODE_RPC_USER,
+        password: process.env.NODE_RPC_PASS
+    }
+}
+
+async function rpc(method, params = []) {
+    const body = {
+        jsonrpc: "1.0",
+        id: Date.now(),
+        method,
+        params
+    }
+    const resp = await axios.post(process.env.NODE_RPC_URL, body, rpcAuthOptions)
+    if (resp.data && resp.data.error) {
+        throw new Error(resp.data.error.message || 'rpc error')
+    }
+    return resp.data.result
+}
+
+async function main() {
+    let cmd = process.argv[2]
+
+    if (fs.existsSync('pending-txs.json')) {
+        console.log('found pending-txs.json. rebroadcasting...')
+        const txs = JSON.parse(fs.readFileSync('pending-txs.json'))
+        await broadcastAll(txs.map(tx => new Transaction(tx)), false)
+        return
+    }
+
+    if (cmd == 'mint') {
+        await mint()
+    } else if (cmd == 'wallet') {
+        await wallet()
+    } else if (cmd == 'server') {
+        await server()
+    } else if (cmd == 'b1t-20') {
+        await b1t20()
+    } else {
+        throw new Error(`unknown command: ${cmd}`)
+    }
+}
+
+async function b1t20() {
+  let subcmd = process.argv[3]
+
+  if (subcmd === 'mint') {
+    await b1t20Transfer("mint")
+  } else if (subcmd === 'transfer') {
+    await b1t20Transfer()
+  } else if (subcmd === 'deploy') {
+    await b1t20Deploy()
+  } else {
+    throw new Error(`unknown subcommand: ${subcmd}`)
+  }
+}
+
+async function b1t20Deploy() {
+  const argAddress = process.argv[4]
+  const argTicker = process.argv[5]
+  const argMax = process.argv[6]
+  const argLimit = process.argv[7]
+
+  const doge20Tx = {
+    p: "b1t-20",
+    op: "deploy",
+    tick: `${argTicker.toLowerCase()}`,
+    max: `${argMax}`,
+    lim: `${argLimit}`
+  };
+
+  const parsedDoge20Tx = JSON.stringify(doge20Tx);
+
+  // encode the doge20Tx as hex string
+  const encodedDoge20Tx = Buffer.from(parsedDoge20Tx).toString('hex');
+
+  console.log("Deploying b1t-20 token...");
+  await mint(argAddress, "text/plain;charset=utf-8", encodedDoge20Tx);
+}
+
+async function b1t20Transfer(op = "transfer") {
+  const argAddress = process.argv[4]
+  const argTicker = process.argv[5]
+  const argAmount = process.argv[6]
+  const argRepeat = Number(process.argv[7]) || 1;
+
+  const doge20Tx = {
+    p: "b1t-20",
+    op,
+    tick: `${argTicker.toLowerCase()}`,
+    amt: `${argAmount}`
+  };
+
+  const parsedDoge20Tx = JSON.stringify(doge20Tx);
+
+  // encode the doge20Tx as hex string
+  const encodedDoge20Tx = Buffer.from(parsedDoge20Tx).toString('hex');
+
+  for (let i = 0; i < argRepeat; i++) {
+    console.log("Minting b1t-20 token...", i + 1, "of", argRepeat, "times");
+    await mint(argAddress, "text/plain;charset=utf-8", encodedDoge20Tx);
+  }
+}
+
+async function wallet() {
+    let subcmd = process.argv[3]
+
+    if (subcmd == 'new') {
+        walletNew()
+    } else if (subcmd == 'sync') {
+        await walletSync()
+    } else if (subcmd == 'balance') {
+        walletBalance()
+    } else if (subcmd == 'send') {
+        await walletSend()
+    } else if (subcmd == 'split') {
+        await walletSplit()
+    } else {
+        throw new Error(`unknown subcommand: ${subcmd}`)
+    }
+}
+
+
+function walletNew() {
+    if (!fs.existsSync(WALLET_PATH)) {
+        const privateKey = new PrivateKey()
+        const privkey = privateKey.toWIF()
+        const address = privateKey.toAddress().toString()
+        const json = { privkey, address, utxos: [] }
+        fs.writeFileSync(WALLET_PATH, JSON.stringify(json, 0, 2))
+        console.log('address', address)
+    } else {
+        throw new Error('wallet already exists')
+    }
+}
+
+
+async function walletSync() {
+    let wallet = JSON.parse(fs.readFileSync(WALLET_PATH))
+
+    console.log('syncing utxos via node RPC')
+
+    // best-effort: import address as watch-only without rescan (fast)
+    try { await rpc('importaddress', [wallet.address, '', false]) } catch (e) { /* ignore */ }
+
+    let utxos = []
+    try {
+        // Prefer scantxoutset for arbitrary addresses
+        const scan = await rpc('scantxoutset', ['start', [`addr(${wallet.address})`]])
+        utxos = (scan.unspents || []).map(u => ({
+            txid: u.txid,
+            vout: u.vout,
+            script: u.scriptPubKey,
+            satoshis: Math.round(u.amount * 1e8)
+        }))
+    } catch (e) {
+        // Fallback to listunspent (requires imported address; scriptPubKey may be present depending on node build)
+        try {
+            const list = await rpc('listunspent', [0, 9999999, [wallet.address], true])
+            utxos = list.map(u => ({
+                txid: u.txid,
+                vout: u.vout,
+                script: u.scriptPubKey || '',
+                satoshis: Math.round(u.amount * 1e8)
+            })).filter(u => !!u.script)
+        } catch (e2) {
+            throw new Error('wallet sync failed: explorer not configured and RPC methods unavailable')
+        }
+    }
+
+    wallet.utxos = utxos
+    fs.writeFileSync(WALLET_PATH, JSON.stringify(wallet, 0, 2))
+
+    let balance = wallet.utxos.reduce((acc, curr) => acc + curr.satoshis, 0)
+    console.log('balance', balance)
+}
+
+
+function walletBalance() {
+    let wallet = JSON.parse(fs.readFileSync(WALLET_PATH))
+
+    let balance = wallet.utxos.reduce((acc, curr) => acc + curr.satoshis, 0)
+
+    console.log(wallet.address, balance)
+}
+
+
+async function walletSend() {
+    const argAddress = process.argv[4]
+    const argAmount = process.argv[5]
+
+    let wallet = JSON.parse(fs.readFileSync(WALLET_PATH))
+
+    let balance = wallet.utxos.reduce((acc, curr) => acc + curr.satoshis, 0)
+    if (balance == 0) throw new Error('no funds to send')
+
+    let receiver = new Address(argAddress)
+    let amount = parseInt(argAmount)
+
+    let tx = new Transaction()
+    if (amount) {
+        tx.to(receiver, amount)
+        fund(wallet, tx)
+    } else {
+        tx.from(wallet.utxos)
+        tx.change(receiver)
+        tx.sign(wallet.privkey)
+    }
+
+    await broadcast(tx, true)
+
+    console.log(tx.hash)
+}
+
+
+async function walletSplit() {
+    let splits = parseInt(process.argv[4])
+
+    let wallet = JSON.parse(fs.readFileSync(WALLET_PATH))
+
+    let balance = wallet.utxos.reduce((acc, curr) => acc + curr.satoshis, 0)
+    if (balance == 0) throw new Error('no funds to split')
+
+    let tx = new Transaction()
+    tx.from(wallet.utxos)
+    for (let i = 0; i < splits - 1; i++) {
+        tx.to(wallet.address, Math.floor(balance / splits))
+    }
+    tx.change(wallet.address)
+    tx.sign(wallet.privkey)
+
+    await broadcast(tx, true)
+
+    console.log(tx.hash)
+}
+
+
+const MAX_SCRIPT_ELEMENT_SIZE = 520
+
+async function mint(paramAddress, paramContentTypeOrFilename, paramHexData) {
+    const argAddress = paramAddress || process.argv[3]
+    const argContentTypeOrFilename = paramContentTypeOrFilename || process.argv[4]
+    const argHexData = paramHexData || process.argv[5]
+
+    let address = new Address(argAddress)
+    let contentType
+    let data
+
+    if (fs.existsSync(argContentTypeOrFilename)) {
+        contentType = mime.contentType(mime.lookup(argContentTypeOrFilename))
+        data = fs.readFileSync(argContentTypeOrFilename)
+    } else {
+        contentType = argContentTypeOrFilename
+        if (!/^[a-fA-F0-9]*$/.test(argHexData)) throw new Error('data must be hex')
+        data = Buffer.from(argHexData, 'hex')
+    }
+
+    if (data.length == 0) {
+        throw new Error('no data to mint')
+    }
+
+    if (contentType.length > MAX_SCRIPT_ELEMENT_SIZE) {
+        throw new Error('content type too long')
+    }
+
+
+    let wallet = JSON.parse(fs.readFileSync(WALLET_PATH))
+
+    let txs = inscribe(wallet, address, contentType, data)
+
+    await broadcastAll(txs, false)
+}
+
+async function broadcastAll(txs, retry) {
+    for (let i = 0; i < txs.length; i++) {
+        console.log(`broadcasting tx ${i + 1} of ${txs.length}`)
+
+        try {
+            await broadcast(txs[i], retry)
+        } catch (e) {
+          console.log('broadcast failed', e?.response.data)
+          if (e?.response?.data.error?.message?.includes("bad-txns-inputs-spent") || e?.response?.data.error?.message?.includes("already in block chain")) {
+            console.log('tx already sent, skipping')
+            continue;
+          }
+          console.log('saving pending txs to pending-txs.json')
+          console.log('to reattempt broadcast, re-run the command')
+          fs.writeFileSync('pending-txs.json', JSON.stringify(txs.slice(i).map(tx => tx.toString())))
+          process.exit(1)
+        }
+    }
+
+    try {
+      fs.unlinkSync('pending-txs.json')
+    } catch (err) {
+      // ignore
+    }
+
+    if (txs.length > 1) {
+      console.log('inscription txid:', txs[1].hash)
+    }
+}
+
+
+function bufferToChunk(b, type) {
+    b = Buffer.from(b, type)
+    return {
+        buf: b.length ? b : undefined,
+        len: b.length,
+        opcodenum: b.length <= 75 ? b.length : b.length <= 255 ? 76 : 77
+    }
+}
+
+function numberToChunk(n) {
+    return {
+        buf: n <= 16 ? undefined : n < 128 ? Buffer.from([n]) : Buffer.from([n % 256, n / 256]),
+        len: n <= 16 ? 0 : n < 128 ? 1 : 2,
+        opcodenum: n == 0 ? 0 : n <= 16 ? 80 + n : n < 128 ? 1 : 2
+    }
+}
+
+function opcodeToChunk(op) {
+    return { opcodenum: op }
+}
+
+
+const MAX_CHUNK_LEN = 240
+const MAX_PAYLOAD_LEN = 1500
+
+function inscribe(wallet, address, contentType, data) {
+    let txs = []
+
+
+    let privateKey = new PrivateKey(wallet.privkey)
+    let publicKey = privateKey.toPublicKey()
+
+    let parts = []
+    while (data.length) {
+        let part = data.slice(0, Math.min(MAX_CHUNK_LEN, data.length))
+        data = data.slice(part.length)
+        parts.push(part)
+    }
+
+
+    let inscription = new Script()
+    inscription.chunks.push(bufferToChunk('ord'))
+    inscription.chunks.push(numberToChunk(parts.length))
+    inscription.chunks.push(bufferToChunk(contentType))
+    parts.forEach((part, n) => {
+        inscription.chunks.push(numberToChunk(parts.length - n - 1))
+        inscription.chunks.push(bufferToChunk(part))
+    })
+
+
+
+    let p2shInput
+    let lastLock
+    let lastPartial
+
+    while (inscription.chunks.length) {
+        let partial = new Script()
+
+        if (txs.length == 0) {
+            partial.chunks.push(inscription.chunks.shift())
+        }
+
+        while (partial.toBuffer().length <= MAX_PAYLOAD_LEN && inscription.chunks.length) {
+            partial.chunks.push(inscription.chunks.shift())
+            partial.chunks.push(inscription.chunks.shift())
+        }
+
+        if (partial.toBuffer().length > MAX_PAYLOAD_LEN) {
+            inscription.chunks.unshift(partial.chunks.pop())
+            inscription.chunks.unshift(partial.chunks.pop())
+        }
+
+        let lock = new Script()
+        lock.chunks.push(bufferToChunk(publicKey.toBuffer()))
+        lock.chunks.push(opcodeToChunk(Opcode.OP_CHECKSIGVERIFY))
+        partial.chunks.forEach(() => {
+            lock.chunks.push(opcodeToChunk(Opcode.OP_DROP))
+        })
+        lock.chunks.push(opcodeToChunk(Opcode.OP_TRUE))
+
+        let lockhash = Hash.ripemd160(Hash.sha256(lock.toBuffer()))
+
+        let p2sh = new Script()
+        p2sh.chunks.push(opcodeToChunk(Opcode.OP_HASH160))
+        p2sh.chunks.push(bufferToChunk(lockhash))
+        p2sh.chunks.push(opcodeToChunk(Opcode.OP_EQUAL))
+
+        let p2shOutput = new Transaction.Output({
+            script: p2sh,
+            satoshis: 100000
+        })
+
+        let tx = new Transaction()
+        if (p2shInput) tx.addInput(p2shInput)
+        tx.addOutput(p2shOutput)
+        fund(wallet, tx)
+
+        if (p2shInput) {
+            let signature = Transaction.sighash.sign(tx, privateKey, Signature.SIGHASH_ALL, 0, lastLock)
+            let txsignature = Buffer.concat([signature.toBuffer(), Buffer.from([Signature.SIGHASH_ALL])])
+
+            let unlock = new Script()
+            unlock.chunks = unlock.chunks.concat(lastPartial.chunks)
+            unlock.chunks.push(bufferToChunk(txsignature))
+            unlock.chunks.push(bufferToChunk(lastLock.toBuffer()))
+            tx.inputs[0].setScript(unlock)
+        }
+
+        updateWallet(wallet, tx)
+        txs.push(tx)
+
+        p2shInput = new Transaction.Input({
+            prevTxId: tx.hash,
+            outputIndex: 0,
+            output: tx.outputs[0],
+            script: ''
+        })
+
+        p2shInput.clearSignatures = () => {}
+        p2shInput.getSignatures = () => {}
+
+
+        lastLock = lock
+        lastPartial = partial
+    }
+
+    let tx = new Transaction()
+    tx.addInput(p2shInput)
+    tx.to(address, 100000)
+    fund(wallet, tx)
+
+    let signature = Transaction.sighash.sign(tx, privateKey, Signature.SIGHASH_ALL, 0, lastLock)
+    let txsignature = Buffer.concat([signature.toBuffer(), Buffer.from([Signature.SIGHASH_ALL])])
+
+    let unlock = new Script()
+    unlock.chunks = unlock.chunks.concat(lastPartial.chunks)
+    unlock.chunks.push(bufferToChunk(txsignature))
+    unlock.chunks.push(bufferToChunk(lastLock.toBuffer()))
+    tx.inputs[0].setScript(unlock)
+
+    updateWallet(wallet, tx)
+    txs.push(tx)
+
+    return txs
+}
+
+
+function fund(wallet, tx) {
+    tx.change(wallet.address)
+    delete tx._fee
+
+    for (const utxo of wallet.utxos) {
+        if (tx.inputs.length && tx.outputs.length && tx.inputAmount >= tx.outputAmount + tx.getFee()) {
+            break
+        }
+
+        delete tx._fee
+        tx.from(utxo)
+        tx.change(wallet.address)
+        tx.sign(wallet.privkey)
+    }
+
+    if (tx.inputAmount < tx.outputAmount + tx.getFee()) {
+        throw new Error('not enough funds')
+    }
+}
+
+
+function updateWallet(wallet, tx) {
+    wallet.utxos = wallet.utxos.filter(utxo => {
+        for (const input of tx.inputs) {
+            if (input.prevTxId.toString('hex') == utxo.txid && input.outputIndex == utxo.vout) {
+                return false
+            }
+        }
+        return true
+    })
+
+    tx.outputs
+        .forEach((output, vout) => {
+            if (output.script.toAddress().toString() == wallet.address) {
+                wallet.utxos.push({
+                    txid: tx.hash,
+                    vout,
+                    script: output.script.toHex(),
+                    satoshis: output.satoshis
+                })
+            }
+        })
+}
+
+
+async function broadcast(tx, retry) {
+    const body = {
+        jsonrpc: "1.0",
+        id: 0,
+        method: "sendrawtransaction",
+        params: [tx.toString()]
+    }
+
+    const options = {
+        auth: {
+            username: process.env.NODE_RPC_USER,
+            password: process.env.NODE_RPC_PASS
+        }
+    }
+
+    while (true) {
+        try {
+            await axios.post(process.env.NODE_RPC_URL, body, options)
+            break
+        } catch (e) {
+            if (!retry) throw e
+            let msg = e.response && e.response.data && e.response.data.error && e.response.data.error.message
+            if (msg && msg.includes('too-long-mempool-chain')) {
+                console.warn('retrying, too-long-mempool-chain')
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+                throw e
+            }
+        }
+    }
+
+    let wallet = JSON.parse(fs.readFileSync(WALLET_PATH))
+
+    updateWallet(wallet, tx)
+
+    fs.writeFileSync(WALLET_PATH, JSON.stringify(wallet, 0, 2))
+}
+
+
+function chunkToNumber(chunk) {
+    if (chunk.opcodenum == 0) return 0
+    if (chunk.opcodenum == 1) return chunk.buf[0]
+    if (chunk.opcodenum == 2) return chunk.buf[1] * 255 + chunk.buf[0]
+    if (chunk.opcodenum > 80 && chunk.opcodenum <= 96) return chunk.opcodenum - 80
+    return undefined
+}
+
+
+async function extract(txid) {
+    // Reconstruct inscription data by walking the input-0 chain backwards
+    // and aggregating all partial chunks until the 'ord' header is found.
+    let visited = new Set()
+    let current = txid
+    let pieceCount
+    let contentType
+    const pieceMap = {}
+    let safety = 0
+
+    while (current && !visited.has(current) && safety++ < 100) {
+        visited.add(current)
+
+        const transaction = await rpc('getrawtransaction', [current, true])
+        const vin0 = transaction?.vin?.[0]
+        const scriptSigHex = vin0?.scriptSig?.hex
+        if (!scriptSigHex) throw new Error('missing scriptSig on input 0')
+
+        let script = Script.fromHex(scriptSigHex)
+        let chunks = script.chunks.slice()
+
+        // Check for header
+        const maybePrefix = chunks[0]?.buf?.toString('utf-8')
+        if (maybePrefix === 'ord') {
+            // Header present on this tx
+            chunks.shift() // 'ord'
+            pieceCount = chunkToNumber(chunks.shift())
+            contentType = chunks.shift().buf.toString('utf-8')
+        }
+
+        // Collect index+data pairs from this input script
+        while (chunks.length >= 2) {
+            const idx = chunkToNumber(chunks.shift())
+            const bufChunk = chunks.shift()
+            const pieceBuf = bufChunk && bufChunk.buf
+            if (typeof idx !== 'undefined' && pieceBuf) {
+                pieceMap[idx] = pieceBuf
+            } else {
+                break
+            }
+        }
+
+        // Stop if we have enough pieces
+        if (typeof pieceCount !== 'undefined' && Object.keys(pieceMap).length >= pieceCount) {
+            break
+        }
+
+        // Walk to the parent transaction (input 0 prevout)
+        current = vin0?.txid
+    }
+
+    if (typeof pieceCount === 'undefined') {
+        throw new Error('inscription header not found in chain')
+    }
+
+    // Concatenate pieces in descending index order to match encoding
+    const indices = Object.keys(pieceMap).map(n => parseInt(n, 10)).sort((a, b) => b - a)
+    if (indices.length < pieceCount) {
+        throw new Error('incomplete inscription chain: missing pieces')
+    }
+
+    let data = Buffer.alloc(0)
+    for (let i = 0; i < pieceCount; i++) {
+        const idx = indices[i] // indices are [pieceCount-1..0]
+        data = Buffer.concat([data, pieceMap[idx]])
+    }
+
+    return {
+        contentType,
+        data
+    }
+}
+
+
+function server() {
+    const app = express()
+    const port = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3000
+
+    app.get('/tx/:txid', (req, res) => {
+        extract(req.params.txid).then(result => {
+            res.setHeader('content-type', result.contentType)
+            res.send(result.data)
+        }).catch(e => res.send(e.message))
+    })
+
+    app.listen(port, () => {
+        console.log(`Listening on port ${port}`)
+        console.log()
+        console.log(`Example:`)
+        console.log(`http://localhost:${port}/tx/15f3b73df7e5c072becb1d84191843ba080734805addfccb650929719080f62e`)
+    })
+}
+
+
+main().catch(e => {
+    let reason = e.response && e.response.data && e.response.data.error && e.response.data.error.message
+    console.error(reason ? e.message + ':' + reason : e.message)
+})

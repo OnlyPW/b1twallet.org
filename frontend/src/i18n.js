@@ -5,7 +5,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 const resources = {
   en: {
     translation: {
-      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Send', receive: 'Receive', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Addresses' },
+      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Send', receive: 'Receive', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Addresses', ordinals: 'Ordinals' },
       actions: { lockWallet: 'Lock Wallet', refresh: 'Refresh', copy: 'Copy', dismiss: 'Dismiss' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
       dashboard: { title: 'Dashboard', welcome: 'Welcome back!' },
@@ -133,12 +133,94 @@ const resources = {
         replaceable: 'Replaceable',
         openExplorer: 'Open in Explorer',
         toast: { incoming: 'Incoming payment detected: +{{delta}} B1T to address #{{index}}' }
+      },
+      ordinals: {
+        title: 'Ordinals',
+        subtitle: 'Manage your Ordinals and Inscriptions',
+        locked: 'Please unlock your wallet to view Ordinals',
+        collection: {
+          title: 'Your Collection'
+        },
+        empty: {
+          title: 'No Ordinals yet',
+          subtitle: 'Create your first inscription to get started'
+        },
+        search: {
+          placeholder: 'Search by name or description...'
+        },
+        loading: 'Loading...',
+        refresh: 'Refresh',
+        noDescription: 'No description',
+        create: {
+          title: 'Create Inscription',
+          subtitle: 'Inscribe images, text, or media',
+          first: 'Create Your First Inscription',
+          modalTitle: 'Create New Inscription',
+          modalDescription: 'Choose content to inscribe on the B1T blockchain',
+          comingSoon: 'Coming Soon',
+          textTab: 'Text',
+          imageTab: 'Image',
+          name: 'Name',
+          description: 'Description',
+          namePlaceholder: 'Enter inscription name',
+          descriptionPlaceholder: 'Enter description (optional)',
+          textContent: 'Text Content',
+          textContentPlaceholder: 'Enter your text here...',
+          characters: 'characters',
+          uploadImage: 'Upload Image',
+          dropImage: 'Drop image here or click to upload',
+          orClick: 'or click to browse',
+          invalidImage: 'Invalid image format',
+          imageTooLarge: 'Image too large (max 10MB)',
+          processing: 'Processing...',
+          settings: 'Settings',
+          simple: 'Simple',
+          advanced: 'Advanced',
+          width: 'Width (px)',
+          height: 'Height (px)',
+          quality: 'Quality',
+          format: 'Format',
+          twoStepProcess: 'Image inscriptions use a two-step process: 1) Image inscription 2) Metadata inscription. This ensures compatibility with B1T Explorer.',
+          estimatedCost: 'Estimated Cost',
+          estimatedTxs: 'Transactions',
+          creating: 'Creating...',
+          createText: 'Create Text Inscription',
+          createImage: 'Create Image Inscription',
+          requiredFields: 'Name and content are required',
+          textSuccess: 'Text inscription created successfully!',
+          textError: 'Failed to create text inscription',
+          imageSuccess: 'Image inscription created successfully!',
+          imageError: 'Failed to create image inscription',
+          processError: 'Failed to process image',
+          fileInfo: 'File Information',
+          originalSize: 'Original Size',
+          processedSize: 'Processed Size',
+          compression: 'Compression',
+          dimensions: 'Dimensions'
+        },
+        transfer: {
+          title: 'Transfer',
+          subtitle: 'Send Ordinals to another address',
+          comingSoon: 'Coming Soon'
+        },
+        explorer: {
+          title: 'View on Explorer',
+          subtitle: 'Explore B1T Ordinals ecosystem'
+        },
+        actions: {
+          send: 'Send',
+          view: 'View on Explorer'
+        },
+        toast: {
+          loadError: 'Failed to load Ordinals',
+          sendPrepared: 'Send functionality coming soon'
+        }
       }
     }
   },
   de: {
     translation: {
-      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Senden', receive: 'Empfangen', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Adressen' },
+      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Senden', receive: 'Empfangen', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Adressen', ordinals: 'Ordinals' },
       actions: { lockWallet: 'Wallet sperren', refresh: 'Aktualisieren', copy: 'Kopieren', dismiss: 'Ausblenden' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
       dashboard: { title: 'Dashboard', welcome: 'Willkommen zurück!' },
@@ -265,6 +347,88 @@ const resources = {
         descendants: 'Nachfahren',
         replaceable: 'Ersetzbar',
         openExplorer: 'Im Explorer öffnen'
+      },
+      ordinals: {
+        title: 'Ordinals',
+        subtitle: 'Verwalte deine Ordinals und Inscriptions',
+        locked: 'Bitte entsperre deine Wallet um Ordinals anzuzeigen',
+        collection: {
+          title: 'Deine Sammlung'
+        },
+        empty: {
+          title: 'Noch keine Ordinals',
+          subtitle: 'Erstelle deine erste Inscription um loszulegen'
+        },
+        search: {
+          placeholder: 'Nach Name oder Beschreibung suchen...'
+        },
+        loading: 'Lade...',
+        refresh: 'Aktualisieren',
+        noDescription: 'Keine Beschreibung',
+        create: {
+          title: 'Inscription erstellen',
+          subtitle: 'Inscribiere Bilder, Text oder Medien',
+          first: 'Erstelle deine erste Inscription',
+          modalTitle: 'Neue Inscription erstellen',
+          modalDescription: 'Wähle Inhalte zum Inscribieren auf der B1T Blockchain',
+          comingSoon: 'Demnächst verfügbar',
+          textTab: 'Text',
+          imageTab: 'Bild',
+          name: 'Name',
+          description: 'Beschreibung',
+          namePlaceholder: 'Name der Inscription eingeben',
+          descriptionPlaceholder: 'Beschreibung eingeben (optional)',
+          textContent: 'Textinhalt',
+          textContentPlaceholder: 'Gib hier deinen Text ein...',
+          characters: 'Zeichen',
+          uploadImage: 'Bild hochladen',
+          dropImage: 'Bild hier ablegen oder klicken zum Hochladen',
+          orClick: 'oder klicken zum Durchsuchen',
+          invalidImage: 'Ungültiges Bildformat',
+          imageTooLarge: 'Bild zu groß (max 10MB)',
+          processing: 'Verarbeite...',
+          settings: 'Einstellungen',
+          simple: 'Einfach',
+          advanced: 'Erweitert',
+          width: 'Breite (px)',
+          height: 'Höhe (px)',
+          quality: 'Qualität',
+          format: 'Format',
+          twoStepProcess: 'Bild-Inscriptions nutzen einen Zwei-Schritt-Prozess: 1) Bild-Inscription 2) Metadaten-Inscription. Dies sorgt für Kompatibilität mit dem B1T Explorer.',
+          estimatedCost: 'Geschätzte Kosten',
+          estimatedTxs: 'Transaktionen',
+          creating: 'Erstelle...',
+          createText: 'Text-Inscription erstellen',
+          createImage: 'Bild-Inscription erstellen',
+          requiredFields: 'Name und Inhalt sind erforderlich',
+          textSuccess: 'Text-Inscription erfolgreich erstellt!',
+          textError: 'Fehler beim Erstellen der Text-Inscription',
+          imageSuccess: 'Bild-Inscription erfolgreich erstellt!',
+          imageError: 'Fehler beim Erstellen der Bild-Inscription',
+          processError: 'Fehler bei der Bildverarbeitung',
+          fileInfo: 'Datei-Informationen',
+          originalSize: 'Originalgröße',
+          processedSize: 'Verarbeitete Größe',
+          compression: 'Kompression',
+          dimensions: 'Abmessungen'
+        },
+        transfer: {
+          title: 'Übertragen',
+          subtitle: 'Sende Ordinals an eine andere Adresse',
+          comingSoon: 'Demnächst verfügbar'
+        },
+        explorer: {
+          title: 'Im Explorer ansehen',
+          subtitle: 'B1T Ordinals Ökosystem erkunden'
+        },
+        actions: {
+          send: 'Senden',
+          view: 'Im Explorer ansehen'
+        },
+        toast: {
+          loadError: 'Ordinals konnten nicht geladen werden',
+          sendPrepared: 'Senden-Funktion demnächst verfügbar'
+        }
       }
     }
   },

@@ -18,7 +18,7 @@ export async function getAddressBalance(address) {
 
 export async function getAddressUtxos(address) {
   const { rows } = await getPool().query(
-    `SELECT txid, vout, value_satoshi AS satoshis, block_height AS height
+    `SELECT txid, vout, value_satoshi AS satoshis, block_height AS height, script_pub_key AS scriptPubKey
      FROM outputs WHERE address=$1 AND spent=FALSE ORDER BY block_height DESC NULLS LAST`,
     [address]
   );
@@ -26,7 +26,8 @@ export async function getAddressUtxos(address) {
     txid: r.txid,
     outputIndex: Number(r.vout),
     satoshis: Number(r.satoshis),
-    height: r.height
+    height: r.height,
+    scriptPubKey: r.scriptpubkey || r.scriptPubKey // Handle both possible column names
   }));
 }
 

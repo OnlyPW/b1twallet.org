@@ -8,6 +8,15 @@ import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
+import HDKey from 'hdkey';
+
+// B1T-spezifische Bibliothek für korrekte xPUB-Generierung
+try {
+  var bitcoreB1T = require('../Extern/fork-B1T-ordinals-BIT-20-inscription/node_modules/bitcore-lib-b1t');
+} catch (error) {
+  console.warn('B1T bitcore-lib nicht verfügbar, verwende bitcoinjs-lib');
+  var bitcoreB1T = null;
+}
 
 const router = express.Router();
 const bip32 = BIP32Factory(ecc);
@@ -61,12 +70,21 @@ router.post('/derive-xpub', (req, res) => {
     }
 
     const seed = bip39.mnemonicToSeedSync(mnemonic);
-    const root = bip32.fromSeed(seed, B1T_NETWORK);
 
-    // BIP44 Account: m/44'/3141'/account'
+    // HDKey aus Master Seed erstellen (wie in der alten Wallet)
+    const hdkey = HDKey.fromMasterSeed(seed);
+
+    // Bitcoin-Standard Präfixe beibehalten (wie in alter Wallet)
+    // Die Adressableitung verwendet B1T-Parameter unabhängig davon
     const path = `m/44'/${B1T_COIN_TYPE}'/${account}'`;
-    const accountNode = root.derivePath(path);
-    const xpub = accountNode.neutered().toBase58();
+
+    // Account ableiten
+    const accountNode = hdkey.derive(path);
+
+    // xPUB mit Bitcoin-konformem Präfix (wie in alter Wallet)
+    const xpub = accountNode.publicExtendedKey;
+
+    console.log('HDKey B1T XPUB Generated:', xpub.substring(0, 20) + '...');
 
     res.json({ success: true, xpub, path, blockbookUrl: `https://blockbook.b1tcore.org/xpub/${xpub}` });
   } catch (error) {
@@ -77,7 +95,7 @@ router.post('/derive-xpub', (req, res) => {
 // Derive Address from Mnemonic
 router.post('/derive-address', (req, res) => {
   try {
-    const { mnemonic, index = 0, change = 0 } = req.body;
+    const { mnemonic, index = 0, change = 0, account = 0 } = req.body;
 
     if (!bip39.validateMnemonic(mnemonic)) {
       return res.status(400).json({ success: false, error: 'Ungültiger Seed' });
@@ -85,9 +103,9 @@ router.post('/derive-address', (req, res) => {
 
     const seed = bip39.mnemonicToSeedSync(mnemonic);
     const root = bip32.fromSeed(seed, B1T_NETWORK);
-    
-    // BIP44 Path: m/44'/3141'/0'/change/index (SLIP-044 für B1T)
-    const path = `m/44'/${B1T_COIN_TYPE}'/0'/${change}/${index}`;
+
+    // BIP44 Path: m/44'/3141'/account'/change/index (SLIP-044 für B1T)
+    const path = `m/44'/${B1T_COIN_TYPE}'/${account}'/${change}/${index}`;
     const child = root.derivePath(path);
     
     const { address } = bitcoin.payments.p2pkh({
@@ -109,7 +127,7 @@ router.post('/derive-address', (req, res) => {
 // Get Multiple Addresses
 router.post('/derive-addresses', (req, res) => {
   try {
-    const { mnemonic, count = 5, change = 0, startIndex = 0 } = req.body;
+    const { mnemonic, count = 5, change = 0, startIndex = 0, account = 0 } = req.body;
 
     if (!bip39.validateMnemonic(mnemonic)) {
       return res.status(400).json({ success: false, error: 'Ungültiger Seed' });
@@ -117,10 +135,10 @@ router.post('/derive-addresses', (req, res) => {
 
     const seed = bip39.mnemonicToSeedSync(mnemonic);
     const root = bip32.fromSeed(seed, B1T_NETWORK);
-    
+
     const addresses = [];
     for (let i = startIndex; i < startIndex + count; i++) {
-      const path = `m/44'/${B1T_COIN_TYPE}'/0'/${change}/${i}`;
+      const path = `m/44'/${B1T_COIN_TYPE}'/${account}'/${change}/${i}`;
       const child = root.derivePath(path);
       const { address } = bitcoin.payments.p2pkh({
         pubkey: child.publicKey,
@@ -598,6 +616,31 @@ router.get('/estimate-fee', async (req, res) => {
     // Ensure suggested fee respects minimum
     const suggested = Math.max(fee, minFee);
     res.json({ success: true, fee: suggested, minFee, blocks: blocksNum });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get Private Key for B1T-20 Inscription
+router.post('/get-private-key', (req, res) => {
+  try {
+    const { mnemonic, account = 0, addressIndex = 0 } = req.body;
+
+    if (!bip39.validateMnemonic(mnemonic)) {
+      return res.status(400).json({ success: false, error: 'Ungültiger Seed' });
+    }
+
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+    const root = bip32.fromSeed(seed, B1T_NETWORK);
+
+    const path = `m/44'/${B1T_COIN_TYPE}'/${account}'/0/${addressIndex}`;
+    const child = root.derivePath(path);
+
+    res.json({
+      success: true,
+      privateKey: child.toWIF(),
+      path
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

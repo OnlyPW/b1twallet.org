@@ -10,6 +10,9 @@ import Receive from './pages/Receive';
 import Explorer from './pages/Explorer';
 import Mempool from './pages/Mempool';
 import Addresses from './pages/Addresses';
+import Ordinals from './pages/Ordinals';
+import CreateInscription from './pages/CreateInscription';
+import B1T20Mint from './pages/B1T20Mint';
 import './App.css';
 
 function App() {
@@ -43,6 +46,9 @@ function App() {
           <Route path="addresses" element={<Addresses />} />
           <Route path="explorer" element={<Explorer />} />
           <Route path="mempool" element={<Mempool />} />
+          <Route path="ordinals" element={<Ordinals />} />
+          <Route path="create-inscription" element={<CreateInscription />} />
+          <Route path="b1t20-mint" element={<B1T20Mint />} />
         </Route>
       </Routes>
     </Router>

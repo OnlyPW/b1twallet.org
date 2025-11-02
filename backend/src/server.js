@@ -6,6 +6,10 @@ import dotenv from 'dotenv';
 import walletRoutes from './routes/wallet.js';
 import explorerRoutes from './routes/explorer.js';
 import mempoolRoutes from './routes/mempool.js';
+import ordinalsRoutes from './routes/ordinals-simple.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const ordinalsB1T20Routes = require('./routes/ordinals-b1t20.cjs');
 import rpcClient from './services/rpcClient.js';
 import explorerClient from './services/explorerClient.js';
 import { initSchema, getTipHeight } from './services/db.js';
@@ -59,8 +63,8 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Body Parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -75,13 +79,13 @@ app.get('/health', (req, res) => {
 app.get('/api/test-connection', async (req, res) => {
   try {
     const info = await rpcClient.call('getblockchaininfo');
-    
+
     // Explorer-Check deaktiviert, um unnötige Fehlerlogs zu vermeiden
     const explorerStatus = 'unknown';
     const explorerBlocks = 0;
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       rpc: {
         chain: info.chain,
         blocks: info.blocks,
@@ -95,9 +99,9 @@ app.get('/api/test-connection', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -133,6 +137,10 @@ app.get('/api/indexer-status', async (req, res) => {
 app.use('/api/wallet', walletRoutes);
 app.use('/api/explorer', explorerRoutes);
 app.use('/api/mempool', mempoolRoutes);
+app.use('/api/ordinals', ordinalsRoutes);
+app.use('/api/ordinals/b1t20', ordinalsB1T20Routes);
+const b1t20DirectDbRoutes = require('./routes/b1t20-direct-db.cjs');
+app.use('/api/b1t20', b1t20DirectDbRoutes);
 
 // Error Handler
 app.use((err, req, res, next) => {

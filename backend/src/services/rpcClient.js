@@ -5,8 +5,8 @@ class BitcoinRPCClient {
   constructor() {
     this.host = process.env.RPC_HOST || 'localhost';
     this.port = process.env.RPC_PORT || 8332;
-    this.user = process.env.RPC_USER || 'user';
-    this.password = process.env.RPC_PASSWORD || 'changeme';
+    this.user = process.env.RPC_USER || 'rpcuser';
+    this.password = process.env.RPC_PASSWORD || 'rpcpassword';
     this.url = `http://${this.host}:${this.port}`;
     this.id = 0;
   }
@@ -58,11 +58,59 @@ class BitcoinRPCClient {
   }
 
   async getBlockCount() {
-    return this.call('getblockcount');
+    try {
+      return this.call('getblockcount');
+    } catch (error) {
+      console.warn('RPC getblockcount failed, using Explorer API fallback:', error.message);
+      try {
+        return await explorerClient.getBlockCount();
+      } catch (explorerError) {
+        console.error('Explorer API fallback also failed:', explorerError.message);
+        throw error;
+      }
+    }
   }
 
   async getBestBlockHash() {
     return this.call('getbestblockhash');
+  }
+
+  async getBlockHash(height) {
+    try {
+      return this.call('getblockhash', [height]);
+    } catch (error) {
+      console.warn(`RPC getblockhash failed for height ${height}, using Explorer API fallback:`, error.message);
+      // Explorer API doesn't have direct getblockhash, but we can try to get recent blocks
+      try {
+        // This is a limitation - Explorer API doesn't provide direct hash lookup by height
+        console.warn('Explorer API fallback for getblockhash is limited - cannot get hash by height');
+        throw new Error('Cannot get block hash by height from Explorer API');
+      } catch (explorerError) {
+        throw error;
+      }
+    }
+  }
+
+  async getBlock(hash, verbosity = 1) {
+    try {
+      return this.call('getblock', [hash, verbosity]);
+    } catch (error) {
+      console.warn(`RPC getblock failed for hash ${hash}, using Explorer API fallback:`, error.message);
+      try {
+        // Explorer API has limited block data, but we can try
+        const blockData = await this._getBlockFromExplorer(hash);
+        return blockData;
+      } catch (explorerError) {
+        console.error('Explorer API fallback for getblock also failed:', explorerError.message);
+        throw error;
+      }
+    }
+  }
+
+  async _getBlockFromExplorer(hash) {
+    // This is a simplified fallback - Explorer API may not have full block data
+    // For now, we'll throw an error to indicate this limitation
+    throw new Error('Explorer API fallback for getblock not implemented - full block data not available');
   }
 
   // Network Methods
@@ -126,22 +174,29 @@ class BitcoinRPCClient {
   }
 
   async getAddressUtxos(address) {
-    // Priorität: schnell und wallet-unabhängig → scantxoutset
-    try {
-      console.log('Nutze scantxoutset für schnelle UTXO-Ermittlung...');
-      const scanResult = await this.call('scantxoutset', ['start', [`addr(${address})`]], 15000);
-      if (scanResult && Array.isArray(scanResult.unspents)) {
-        console.log(`scantxoutset fand ${scanResult.unspents.length} UTXOs`);
-        return scanResult.unspents.map(utxo => ({
-          txid: utxo.txid,
-          outputIndex: utxo.vout,
-          satoshis: Math.floor(utxo.amount * 100000000),
-          height: utxo.height || -1,
-          script: utxo.scriptPubKey
-        }));
+    // Check if scantxoutset should be skipped (environment variable)
+    const skipScantxoutset = process.env.RPC_SKIP_SCANTXOUTSET === 'true';
+
+    // Priorität: schnell und wallet-unabhängig → scantxoutset (wenn nicht deaktiviert)
+    if (!skipScantxoutset) {
+      try {
+        console.log('Nutze scantxoutset für schnelle UTXO-Ermittlung...');
+        const scanResult = await this.call('scantxoutset', ['start', [`addr(${address})`]], 15000);
+        if (scanResult && Array.isArray(scanResult.unspents)) {
+          console.log(`scantxoutset fand ${scanResult.unspents.length} UTXOs`);
+          return scanResult.unspents.map(utxo => ({
+            txid: utxo.txid,
+            outputIndex: utxo.vout,
+            satoshis: Math.floor(utxo.amount * 100000000),
+            height: utxo.height || -1,
+            script: utxo.scriptPubKey
+          }));
+        }
+      } catch (scanError) {
+        console.warn('scantxoutset nicht verfügbar oder fehlgeschlagen:', scanError.message);
       }
-    } catch (scanError) {
-      console.warn('scantxoutset nicht verfügbar oder fehlgeschlagen:', scanError.message);
+    } else {
+      console.log('scantxoutset ist deaktiviert (RPC_SKIP_SCANTXOUTSET=true), nutze direkt listunspent...');
     }
 
     // Fallback: Wallet-RPC ohne Rescan (schneller, zeigt nur neue UTXOs)

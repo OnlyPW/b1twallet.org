@@ -3,11 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import fetch from 'node-fetch';
 import walletRoutes from './routes/wallet.js';
 import explorerRoutes from './routes/explorer.js';
 import mempoolRoutes from './routes/mempool.js';
 import rpcClient from './services/rpcClient.js';
-import explorerClient from './services/explorerClient.js';
 import { initSchema, getTipHeight } from './services/db.js';
 import { startIndexer } from './indexer/indexer.js';
 
@@ -15,46 +15,29 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const ORD_INDEXER_URL = process.env.ORD_INDEXER_URL || 'http://b1t-ord-indexer:8080';
 
 // Security Middleware
 app.use(helmet());
-// CORS: Erlaube mehrere Dev-Origins (3000, 3002) und lokale Netzwerke
 const corsOriginEnv = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3002';
 const allowedOrigins = corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean);
-const CORS_VERBOSE = String(process.env.CORS_VERBOSE || 'false').toLowerCase() === 'true';
-try { console.log('CORS Allowed Origins:', allowedOrigins); } catch {}
 app.use(cors({
   origin: (origin, callback) => {
-    if (CORS_VERBOSE) { try { console.log('CORS Check - Request Origin:', origin); } catch {} }
-    // Nicht-Browser/gleiches Origin
     if (!origin) return callback(null, true);
-    // Explizit erlaubte Origins aus ENV
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Vite Dev Server auf localhost beliebigen Ports zulassen
     if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
-    // Lokale Netzwerke (für Vite Preview) zulassen
     if (/^http:\/\/(127\.0\.0\.1|192\.168\.|172\.)\d*:\d+$/.test(origin)) return callback(null, true);
-    if (CORS_VERBOSE) { try { console.warn('CORS blocked:', origin); } catch {} }
     return callback(null, false);
   },
   credentials: true
 }));
 
-// Rate Limiting (relaxed in development and for GET requests)
+// Rate Limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req, res) => {
-    const isDev = String(process.env.NODE_ENV || '').toLowerCase() === 'development';
-    // In development, skip limiting entirely
-    if (isDev) return true;
-    // Optionally skip GET endpoints in production if explicitly enabled
-    const skipGet = String(process.env.RATE_LIMIT_SKIP_GET || 'false').toLowerCase() === 'true';
-    if (skipGet && req.method === 'GET') return true;
-    return false;
-  }
 });
 app.use('/api/', limiter);
 
@@ -71,15 +54,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Ordinals Indexer Proxy
+app.use('/api/ordinals', async (req, res) => {
+  try {
+    const response = await fetch(`${ORD_INDEXER_URL}${req.url}`);
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Ordinals indexer not available' });
+  }
+});
+
 // Test RPC Connection
 app.get('/api/test-connection', async (req, res) => {
   try {
     const info = await rpcClient.call('getblockchaininfo');
-    
-    // Explorer-Check deaktiviert, um unnötige Fehlerlogs zu vermeiden
-    const explorerStatus = 'unknown';
-    const explorerBlocks = 0;
-    
     res.json({ 
       success: true, 
       rpc: {
@@ -87,11 +76,6 @@ app.get('/api/test-connection', async (req, res) => {
         blocks: info.blocks,
         headers: info.headers,
         status: 'online'
-      },
-      explorer: {
-        status: explorerStatus,
-        blocks: explorerBlocks,
-        url: 'https://b1texplorer.com'
       }
     });
   } catch (error) {
@@ -111,10 +95,8 @@ app.get('/api/indexer-status', async (req, res) => {
     let chainTip = 0;
     try { dbTip = await getTipHeight(); } catch {}
     try { chainTip = await rpcClient.getBlockCount(); } catch {}
-
     const progress = chainTip > 0 && dbTip >= 0 ? Math.min(100, Math.round((dbTip / chainTip) * 10000) / 100) : 0;
     const status = !enabled ? 'disabled' : (chainTip > 0 && dbTip >= chainTip ? 'caught_up' : 'syncing');
-
     res.json({
       success: true,
       enabled,
@@ -156,7 +138,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 B1T Wallet Backend läuft auf Port ${PORT}`);
   console.log(`🔗 RPC Host: ${process.env.RPC_HOST}:${process.env.RPC_PORT}`);
   console.log(`📡 CORS Origin: ${process.env.CORS_ORIGIN}`);
-  // Initialize DB and start indexer in background if enabled
   (async () => {
     try {
       const enabled = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
@@ -173,4 +154,3 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 export default app;
-

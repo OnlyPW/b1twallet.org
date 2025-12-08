@@ -1,17 +1,20 @@
 version: '3.8'
 
 services:
-  # B1T Core Node (bereits vorhanden - nur Referenz)
-  # bitcore:
-  #   container_name: bitcore
-  #   image: your-bitcore-image
-  #   ports:
-  #     - "8332:8332"
-  #     - "8333:8333"
-  #   volumes:
-  #     - ./bit.conf:/root/.bit/bit.conf
+  b1t-core:
+    container_name: b1t-core
+    build:
+      context: ./Bitcore-docker-B1T
+      dockerfile: Dockerfile
+    ports:
+      - "8332:8332"
+      - "8333:8333"
+    volumes:
+      - ./bit.conf:/root/.bit/bit.conf
+    networks:
+      - b1t-network
+    restart: unless-stopped
 
-  # Backend - RPC Proxy
   wallet-backend:
     container_name: b1t-wallet-backend
     build:
@@ -21,30 +24,26 @@ services:
       - "3001:3001"
     environment:
       - NODE_ENV=development
-      - RPC_HOST=host.docker.internal
+      - RPC_HOST=b1t-core
       - RPC_PORT=8332
       - RPC_USER=user
       - RPC_PASSWORD=changeme
       - PORT=3001
       - CORS_ORIGIN=http://localhost:3000
-      # Database
       - DB_HOST=b1t-db
       - DB_PORT=5432
       - DB_USER=b1t
       - DB_PASSWORD=b1tpass
       - DB_NAME=b1twallet
-      # Indexer
       - INDEXER_ENABLED=true
       - INDEXER_START_HEIGHT=0
     networks:
       - b1t-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       - b1t-db
+      - b1t-core
     restart: unless-stopped
 
-  # Frontend - React App
   wallet-frontend:
     container_name: b1t-wallet-frontend
     build:
@@ -53,18 +52,14 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - VITE_API_URL=https://b1twallet.org
+      - VITE_API_URL=http://localhost:3001
       - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     networks:
       - b1t-network
     depends_on:
       - wallet-backend
     restart: unless-stopped
 
-  # Database - PostgreSQL
   b1t-db:
     container_name: b1t-db
     image: postgres:16-alpine
@@ -79,14 +74,35 @@ services:
     networks:
       - b1t-network
     restart: unless-stopped
+  
+  b1t-ord-indexer:
+    container_name: b1t-ord-indexer
+    build:
+      context: ./B1T-20-Indexer
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - RPC_HOST=b1t-core
+      - RPC_PORT=8332
+      - RPC_USER=user
+      - RPC_PASS=changeme
+      - DB_HOST=b1t-db
+      - DB_PORT=5432
+      - DB_USER=b1t
+      - DB_PASS=b1tpass
+      - DB_NAME=b1twallet
+    networks:
+      - b1t-network
+    depends_on:
+      - b1t-db
+      - b1t-core
+    restart: unless-stopped
 
 networks:
   b1t-network:
     driver: bridge
 
 volumes:
-  node_modules_backend:
-  node_modules_frontend:
   pgdata:
-
-

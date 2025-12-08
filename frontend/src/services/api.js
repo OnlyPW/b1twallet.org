@@ -71,6 +71,10 @@ export const walletApi = {
   
   estimateFee: (blocks = 6) =>
     api.get('/api/wallet/estimate-fee', { params: { blocks } }),
+
+  // Tokens
+  getTokens: (address) =>
+    api.get(`/api/ordinals/address/${address}/tokens`),
 };
 
 // Health Check
@@ -98,5 +102,3 @@ export const mempoolApi = {
 };
 
 export default api;
-
-

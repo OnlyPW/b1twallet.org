@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { walletApi, getIndexerStatus } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import useWalletStore from '../store/walletStore';
+import Tokens from './Tokens'; // Import the Tokens component
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -18,7 +19,8 @@ export default function Dashboard() {
   const [indexer, setIndexer] = useState(null);
   const [live, setLive] = useState(null);
   const [xpub, setXpub] = useState(null);
-  const pendingInRef = useRef(new Map()); // address -> last seen pending.in
+  const [activeTab, setActiveTab] = useState('transactions'); // New state for active tab
+  const pendingInRef = useRef(new Map());
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -29,7 +31,6 @@ export default function Dashboard() {
     loadWalletData();
   }, [isUnlocked, navigate]);
 
-  // Poll live balance from mempool every 10s for dynamic updates
   useEffect(() => {
     if (!isUnlocked || !addressDetails?.address) return;
     const id = setInterval(async () => {
@@ -41,11 +42,9 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [isUnlocked, addressDetails?.address]);
 
-  // Mempool-Watcher: prüft alle Adressen auf neue eingehende Beträge im Mempool
   useEffect(() => {
     if (!isUnlocked || !(addresses || []).length) return;
 
-    // Initialisiere bekannte Werte
     const addrList = (addresses || []).map(a => a.address);
     addrList.forEach(a => { if (!pendingInRef.current.has(a)) pendingInRef.current.set(a, 0); });
 
@@ -63,7 +62,6 @@ export default function Dashboard() {
             const idx = addresses[i]?.index ?? i;
             toast.success(t('mempool.toast.incoming', { delta: delta.toFixed(8), index: idx }));
           } else {
-            // Aktualisieren ohne Benachrichtigung
             pendingInRef.current.set(addrList[i], pendingIn);
           }
         });
@@ -83,7 +81,6 @@ export default function Dashboard() {
         return;
       }
 
-      // XPUB anzeigen (optional)
       try {
         let mnemonic;
         try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
@@ -93,16 +90,14 @@ export default function Dashboard() {
         }
       } catch {}
 
-      // Adressenliste für Aggregation
       const addrs = (addresses || []).map(a => a.address);
       const allAddresses = addrs.length > 0 ? addrs : [currentAddr.address];
 
-      // Lade Balance über alle Adressen parallel
       const balanceResults = await Promise.allSettled(
         allAddresses.map((addr) => walletApi.getBalance(addr))
       );
       let totalBalance = 0;
-      const balanceMap = {}; // address -> number
+      const balanceMap = {};
       for (let i = 0; i < balanceResults.length; i++) {
         const r = balanceResults[i];
         if (r.status === 'fulfilled') {
@@ -116,7 +111,6 @@ export default function Dashboard() {
       }
       setBalance(totalBalance);
 
-      // Auto-Aktivierung: wenn aktive Adresse 0 hat, nimm die mit dem höchsten Guthaben
       let switched = false;
       try {
         const currentBal = balanceMap[currentAddr.address] || 0;
@@ -135,10 +129,8 @@ export default function Dashboard() {
         }
       } catch {}
 
-      // Setze Details basierend auf aktiver Adresse (nach möglichem Wechsel)
       setAddressDetails(currentAddr);
 
-      // Live Balance nur für aktive Adresse
       try {
         const lb = await walletApi.getLiveBalance(currentAddr.address);
         setLive(lb);
@@ -146,7 +138,6 @@ export default function Dashboard() {
         setLive(null);
       }
 
-      // Transaktionen für alle Adressen sammeln
       const txResults = await Promise.allSettled(
         allAddresses.map((addr) => walletApi.getTransactions(addr, 0, 20))
       );
@@ -159,7 +150,6 @@ export default function Dashboard() {
           if (!existing) {
             txMap.set(tx.txid, { ...tx });
           } else {
-            // Summiere Beträge über Adressen derselben Wallet
             txMap.set(tx.txid, {
               ...existing,
               sent: (existing.sent || 0) + (tx.sent || 0),
@@ -175,7 +165,6 @@ export default function Dashboard() {
         .sort((a, b) => ((b.time || b.blocktime || 0) - (a.time || a.blocktime || 0)));
       setTransactions(aggregated);
 
-      // Indexer status
       try {
         const ix = await getIndexerStatus();
         setIndexer(ix);
@@ -215,7 +204,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -225,7 +213,6 @@ export default function Dashboard() {
         <p className="text-gray-400">{t('dashboard.welcome')}</p>
       </motion.div>
 
-      {/* Indexer Status */}
       <div className="card">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -261,7 +248,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Balance Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -338,7 +324,6 @@ export default function Dashboard() {
       </div>
       </motion.div>
 
-      {/* Quick Actions */}
       <div className="grid md:grid-cols-2 gap-4">
         <Link
           to="/send"
@@ -371,66 +356,69 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Transactions */}
-      <div className="card space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-xl font-semibold flex items-center space-x-2">
-            <Clock size={20} className="text-b1t-orange" />
-            <span>{t('tx.latest')}</span>
-          </h3>
-          <button
-            onClick={loadWalletData}
-            disabled={loading}
-            className="text-sm text-b1t-orange hover:text-b1t-orange-400"
-          >
-            {t('tx.refresh')}
-          </button>
-        </div>
-
-        {transactions.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <TrendingUp size={48} className="mx-auto mb-4 opacity-50" />
-            <p>{t('tx.none')}</p>
-            <p className="text-sm">{t('tx.none_subtitle')}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[...transactions]
-              .sort((a, b) => ((b.time || b.blocktime || 0) - (a.time || a.blocktime || 0)))
-              .slice(0, 5)
-              .map((tx, index) => (
-              <motion.div
-                key={tx.txid || index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="p-4 rounded-lg bg-dark-200 hover:bg-dark-100 transition"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="font-mono text-sm text-gray-400">
-                      {formatAddress(tx.txid)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {formatDate(tx.time || tx.blocktime)}
-                    </p>
-                    <p className="text-xs text-gray-300">
-                      {((tx.sent || 0) > 0) ? t('explorer.sent') : t('explorer.received')}: {formatAmount(((tx.sent || 0) > 0) ? tx.sent : (tx.received || 0))} B1T
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-b1t-orange">
-                      {tx.confirmations >= 6 ? '✓' : '⏳'} {tx.confirmations || 0} {t('tx.confirmations')}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+      {/* Tab Navigation for Transactions and Tokens */}
+      <div className="flex border-b border-dark-200">
+        <button 
+          className={`px-4 py-2 text-lg font-semibold ${activeTab === 'transactions' ? 'text-b1t-orange border-b-2 border-b1t-orange' : 'text-gray-400'}`}
+          onClick={() => setActiveTab('transactions')}
+        >
+          {t('tx.latest')}
+        </button>
+        <button 
+          className={`px-4 py-2 text-lg font-semibold ${activeTab === 'tokens' ? 'text-b1t-orange border-b-2 border-b1t-orange' : 'text-gray-400'}`}
+          onClick={() => setActiveTab('tokens')}
+        >
+          {t('tokens.title')}
+        </button>
       </div>
+
+      {/* Conditional Rendering based on Active Tab */}
+      {activeTab === 'transactions' && (
+        <div className="card space-y-4">
+          {transactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <TrendingUp size={48} className="mx-auto mb-4 opacity-50" />
+              <p>{t('tx.none')}</p>
+              <p className="text-sm">{t('tx.none_subtitle')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {[...transactions]
+                .sort((a, b) => ((b.time || b.blocktime || 0) - (a.time || a.blocktime || 0)))
+                .slice(0, 5)
+                .map((tx, index) => (
+                <motion.div
+                  key={tx.txid || index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-4 rounded-lg bg-dark-200 hover:bg-dark-100 transition"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <p className="font-mono text-sm text-gray-400">
+                        {formatAddress(tx.txid)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDate(tx.time || tx.blocktime)}
+                      </p>
+                      <p className="text-xs text-gray-300">
+                        {((tx.sent || 0) > 0) ? t('explorer.sent') : t('explorer.received')}: {formatAmount(((tx.sent || 0) > 0) ? tx.sent : (tx.received || 0))} B1T
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-b1t-orange">
+                        {tx.confirmations >= 6 ? '✓' : '⏳'} {tx.confirmations || 0} {t('tx.confirmations')}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab === 'tokens' && <Tokens />}
     </div>
   );
 }
-
-

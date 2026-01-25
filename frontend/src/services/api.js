@@ -80,15 +80,15 @@ export const walletApi = {
   getTokens: (address) =>
     api.get(`/api/ordinals/address/${address}/tokens`),
 
-  // Rabb1ts Mining
+  // Rabb1ts Mining (with extended timeout for mining operations)
   getRabb1tsUtxos: (address) =>
     api.get(`/api/wallet/rabb1ts/utxo-details/${address}`),
 
   mineRabb1tsBatch: (data) =>
-    api.post('/api/wallet/rabb1ts/mine-batch', data),
+    api.post('/api/wallet/rabb1ts/mine-batch', data, { timeout: 120000 }), // 2 min timeout
 
   mineRabb1tsAttempt: (data) =>
-    api.post('/api/wallet/rabb1ts/mine-attempt', data),
+    api.post('/api/wallet/rabb1ts/mine-attempt', data, { timeout: 60000 }), // 1 min timeout
 };
 
 // Health Check

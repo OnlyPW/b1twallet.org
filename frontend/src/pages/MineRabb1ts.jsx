@@ -45,6 +45,8 @@ export default function MineRabb1ts() {
     const [isLoading, setIsLoading] = useState(false);
     const [numWorkers, setNumWorkers] = useState(Math.min(32, getAvailableCores()));
     const [workerStats, setWorkerStats] = useState({});
+    const [stopOnFind, setStopOnFind] = useState(false);
+    const [rabb1tsFound, setRabb1tsFound] = useState(0);
 
     const logContainerRef = useRef(null);
     const miningRef = useRef(false);
@@ -52,6 +54,8 @@ export default function MineRabb1ts() {
     const sequenceCounters = useRef({});
     const hashCounters = useRef({});
     const activeWorkers = useRef(0);
+    const usedUtxosRef = useRef(new Set()); // Track UTXOs we've already mined with
+    const foundTxidsRef = useRef(new Set()); // Track TXIDs we've already found
 
     // Auto-scroll logs
     useEffect(() => {
@@ -135,19 +139,79 @@ export default function MineRabb1ts() {
         setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), msg, type }].slice(-100));
     };
 
-    // Single worker mining loop
-    const workerLoop = async (workerId, wif, startSeq) => {
+    // Reload UTXOs and continue mining with new UTXO
+    const reloadAndContinue = async (wif, justUsedUtxoKey) => {
+        addLog('🔄 Reloading UTXOs for continued mining...', 'info');
+        
+        // Mark the just-used UTXO as used
+        if (justUsedUtxoKey) {
+            usedUtxosRef.current.add(justUsedUtxoKey);
+        }
+        
+        // Wait a bit for the blockchain to update
+        await new Promise(r => setTimeout(r, 3000));
+        
+        try {
+            const res = await walletApi.getRabb1tsUtxos(address);
+            const list = res.utxos || [];
+            
+            // Filter out already used UTXOs
+            const validUtxos = list.filter(u => {
+                const utxoKey = `${u.txid}:${u.vout}`;
+                return u.satoshis > 200000 && u.scriptPubKey && !usedUtxosRef.current.has(utxoKey);
+            });
+            
+            if (validUtxos.length > 0) {
+                setUtxos(validUtxos);
+                setSelectedUtxo(validUtxos[0]);
+                addLog(`Found ${validUtxos.length} fresh UTXOs, continuing mining...`, 'info');
+                
+                // Reset and restart workers with new UTXO
+                foundRef.current = false;
+                hashCounters.current = {};
+                sequenceCounters.current = {};
+                activeWorkers.current = numWorkers;
+                
+                for (let i = 0; i < numWorkers; i++) {
+                    const startSeq = i * batchSize;
+                    workerLoopInternal(i, wif, startSeq, validUtxos[0]);
+                }
+            } else {
+                addLog('⏳ No fresh UTXOs available yet. Waiting for confirmation...', 'warning');
+                
+                // Retry after some time
+                setTimeout(async () => {
+                    if (miningRef.current) {
+                        addLog('🔄 Retrying UTXO reload...', 'info');
+                        reloadAndContinue(wif, null);
+                    }
+                }, 10000); // Retry after 10 seconds
+            }
+        } catch (error) {
+            addLog(`Failed to reload UTXOs: ${error.message}`, 'error');
+            // Retry on error
+            setTimeout(() => {
+                if (miningRef.current) {
+                    reloadAndContinue(wif, null);
+                }
+            }, 5000);
+        }
+    };
+
+    // Internal worker loop with UTXO parameter
+    const workerLoopInternal = async (workerId, wif, startSeq, utxo) => {
         let sequence = startSeq;
+        const currentUtxo = utxo || selectedUtxo;
 
         while (miningRef.current && !foundRef.current) {
             try {
                 const result = await walletApi.mineRabb1tsBatch({
-                    txid: selectedUtxo.txid,
-                    vout: selectedUtxo.vout,
+                    txid: currentUtxo.txid,
+                    vout: currentUtxo.vout,
                     address: address,
                     wif: wif,
-                    scriptPubKey: selectedUtxo.scriptPubKey,
-                    satoshis: selectedUtxo.satoshis,
+                    scriptPubKey: currentUtxo.scriptPubKey,
+                    satoshis: currentUtxo.satoshis,
                     startSequence: sequence,
                     batchSize: batchSize,
                     targetZeros: targetZeros
@@ -160,31 +224,70 @@ export default function MineRabb1ts() {
                 sequenceCounters.current[workerId] = result.nextSequence;
 
                 if (result.found && result.result) {
-                    foundRef.current = true;
-                    addLog(`🐇 Worker ${workerId + 1}: RABB1T FOUND! TXID: ${result.result.txid}`, 'success');
-                    addLog(`Sequence: ${result.result.sequence}`, 'success');
-                    toast.success('🐇 RABB1T MINED!');
-                    remoteLog('SUCCESS', 'Rabb1t mined!', { txid: result.result.txid, worker: workerId });
-
+                    const foundTxid = result.result.txid;
+                    
+                    // Check if we already found this TXID (duplicate detection)
+                    if (foundTxidsRef.current.has(foundTxid)) {
+                        // Silently skip - this is a duplicate
+                        sequence = result.nextSequence + (batchSize * (numWorkers - 1));
+                        continue;
+                    }
+                    
+                    foundRef.current = true; // Pause other workers temporarily
+                    
                     // Broadcast
                     try {
                         const broadcast = await walletApi.broadcastTransaction(result.result.hex);
+                        
+                        // Mark this TXID as found
+                        foundTxidsRef.current.add(foundTxid);
+                        
+                        addLog(`🐇 Worker ${workerId + 1}: RABB1T FOUND! TXID: ${foundTxid}`, 'success');
+                        addLog(`Sequence: ${result.result.sequence}`, 'success');
                         addLog(`Broadcasted! Confirmed TXID: ${broadcast.txid}`, 'success');
-                        toast.success('Transaction broadcasted!');
+                        toast.success('🐇 RABB1T MINED & BROADCASTED!');
+                        remoteLog('SUCCESS', 'Rabb1t mined!', { txid: foundTxid, worker: workerId });
+                        setRabb1tsFound(prev => prev + 1);
+                        
+                        // Mark current UTXO as used
+                        const utxoKey = `${currentUtxo.txid}:${currentUtxo.vout}`;
+                        
+                        // Check if we should stop or continue
+                        if (stopOnFind) {
+                            miningRef.current = false;
+                            setIsMining(false);
+                            addLog('Stopped mining (Stop on Find enabled)', 'info');
+                            return;
+                        } else {
+                            // Continue mining with new UTXO
+                            reloadAndContinue(wif, utxoKey);
+                            return;
+                        }
                     } catch (broadcastErr) {
-                        addLog(`Broadcast failed: ${broadcastErr.message}`, 'error');
+                        const errMsg = broadcastErr.message || '';
+                        // Silently skip if transaction is already in blockchain
+                        if (errMsg.includes('already in block chain') || errMsg.includes('already known')) {
+                            // Mark as found to prevent re-finding
+                            foundTxidsRef.current.add(foundTxid);
+                            foundRef.current = false; // Allow workers to continue
+                            sequence = result.nextSequence + (batchSize * (numWorkers - 1));
+                            continue;
+                        }
+                        // Log other broadcast errors
+                        addLog(`Broadcast failed: ${errMsg}`, 'error');
+                        foundRef.current = false; // Allow workers to continue
                     }
-
-                    miningRef.current = false;
-                    setIsMining(false);
-                    return;
                 }
 
                 // Move to next sequence range (skip other workers' ranges)
                 sequence = result.nextSequence + (batchSize * (numWorkers - 1));
 
             } catch (error) {
-                addLog(`Worker ${workerId + 1} error: ${error.message}`, 'warning');
+                const errMsg = error.message || '';
+                // Don't log timeout errors as warnings, just retry silently
+                if (!errMsg.includes('timeout')) {
+                    addLog(`Worker ${workerId + 1} error: ${errMsg}`, 'warning');
+                }
                 // Short delay on error, then retry
                 await new Promise(r => setTimeout(r, 500));
             }
@@ -194,6 +297,11 @@ export default function MineRabb1ts() {
         if (activeWorkers.current === 0 && miningRef.current) {
             addLog('All workers stopped', 'warning');
         }
+    };
+
+    // Single worker mining loop (wrapper for backward compatibility)
+    const workerLoop = async (workerId, wif, startSeq) => {
+        workerLoopInternal(workerId, wif, startSeq, selectedUtxo);
     };
 
     const startMining = async () => {
@@ -213,11 +321,14 @@ export default function MineRabb1ts() {
         setTotalHashes(0);
         setHashRate(0);
         setWorkerStats({});
+        setRabb1tsFound(0);
         miningRef.current = true;
         foundRef.current = false;
         hashCounters.current = {};
         sequenceCounters.current = {};
         activeWorkers.current = numWorkers;
+        usedUtxosRef.current = new Set(); // Reset used UTXOs for new session
+        foundTxidsRef.current = new Set(); // Reset found TXIDs for new session
 
         addLog(`Starting Rabb1ts Miner with ${numWorkers} parallel workers...`, 'info');
         addLog(`UTXO: ${selectedUtxo.txid.substring(0, 16)}... (${selectedUtxo.satoshis} sats)`, 'info');
@@ -357,6 +468,21 @@ export default function MineRabb1ts() {
                         </div>
                     </div>
 
+                    {/* Stop on Find Checkbox */}
+                    <div className="flex items-center gap-3 p-3 bg-dark-500 rounded-lg">
+                        <input
+                            type="checkbox"
+                            id="stopOnFind"
+                            checked={stopOnFind}
+                            onChange={(e) => setStopOnFind(e.target.checked)}
+                            disabled={isMining}
+                            className="w-5 h-5 rounded border-dark-300 bg-dark-400 text-b1t-orange focus:ring-b1t-orange cursor-pointer"
+                        />
+                        <label htmlFor="stopOnFind" className="text-sm text-gray-300 cursor-pointer select-none">
+                            Stop after finding RABB1T
+                        </label>
+                    </div>
+
                     {/* Actions */}
                     <button
                         type="button"
@@ -383,7 +509,7 @@ export default function MineRabb1ts() {
                     className="card p-6 lg:col-span-2 flex flex-col h-[500px]"
                 >
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="grid grid-cols-5 gap-4 mb-4">
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
                             <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Rate</div>
                             <div className="text-2xl font-mono font-bold text-white">{hashRate} <span className="text-sm text-gray-500">tx/s</span></div>
@@ -391,6 +517,10 @@ export default function MineRabb1ts() {
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
                             <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Total</div>
                             <div className="text-2xl font-mono font-bold text-b1t-orange">{totalHashes.toLocaleString()}</div>
+                        </div>
+                        <div className="bg-dark-500 p-4 rounded-lg text-center">
+                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Found</div>
+                            <div className="text-2xl font-mono font-bold text-green-400">🐇 {rabb1tsFound}</div>
                         </div>
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
                             <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Workers</div>
@@ -459,8 +589,8 @@ export default function MineRabb1ts() {
                         <p>Your B1T node creates and signs transactions via RPC for each sequence number attempt.</p>
                     </div>
                     <div>
-                        <strong className="text-white">3. First Hit Wins</strong>
-                        <p>When any worker finds a TXID with 5 zeros, all workers stop and the transaction is broadcasted!</p>
+                        <strong className="text-white">3. Continuous Mining</strong>
+                        <p>Automatically reloads UTXOs and continues mining after each find! Enable "Stop on Find" to mine single RABB1Ts.</p>
                     </div>
                 </div>
             </motion.div>

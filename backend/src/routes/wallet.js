@@ -709,16 +709,16 @@ router.post('/rabb1ts/mine-batch', async (req, res) => {
             [{ txid, vout, sequence: seq }],
             { [address]: outputAmount },
             0
-          ]);
+          ], 60000); // 60s timeout
 
           const signed = await rpcClient.call('signrawtransaction', [
             rawTx,
             [{ txid, vout, scriptPubKey, amount: satoshis / 1e8 }],
             [wif]
-          ]);
+          ], 60000); // 60s timeout
 
           if (signed.complete) {
-            const decoded = await rpcClient.call('decoderawtransaction', [signed.hex]);
+            const decoded = await rpcClient.call('decoderawtransaction', [signed.hex], 30000);
             return {
               success: true,
               txid: decoded.txid,

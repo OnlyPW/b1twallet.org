@@ -34,10 +34,11 @@ app.use(cors({
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10000, // Limit each IP to 10000 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy warning
 });
 app.use('/api/', limiter);
 
@@ -47,11 +48,19 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health Check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'online', 
+  res.json({
+    status: 'online',
     service: 'B1T Wallet Backend',
     timestamp: new Date().toISOString()
   });
+});
+
+// Debug Logging (Frontend -> Backend Logs)
+app.post('/api/debug/log', (req, res) => {
+  const { level, message, data } = req.body;
+  const timestamp = new Date().toISOString();
+  console.log(`[FE-${level || 'INFO'}] ${timestamp}: ${message}`, data || '');
+  res.json({ success: true });
 });
 
 // Ordinals Indexer Proxy
@@ -69,8 +78,8 @@ app.use('/api/ordinals', async (req, res) => {
 app.get('/api/test-connection', async (req, res) => {
   try {
     const info = await rpcClient.call('getblockchaininfo');
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       rpc: {
         chain: info.chain,
         blocks: info.blocks,
@@ -79,9 +88,9 @@ app.get('/api/test-connection', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -93,8 +102,8 @@ app.get('/api/indexer-status', async (req, res) => {
     const startHeight = parseInt(process.env.INDEXER_START_HEIGHT || '0', 10);
     let dbTip = -1;
     let chainTip = 0;
-    try { dbTip = await getTipHeight(); } catch {}
-    try { chainTip = await rpcClient.getBlockCount(); } catch {}
+    try { dbTip = await getTipHeight(); } catch { }
+    try { chainTip = await rpcClient.getBlockCount(); } catch { }
     const progress = chainTip > 0 && dbTip >= 0 ? Math.min(100, Math.round((dbTip / chainTip) * 10000) / 100) : 0;
     const status = !enabled ? 'disabled' : (chainTip > 0 && dbTip >= chainTip ? 'caught_up' : 'syncing');
     res.json({

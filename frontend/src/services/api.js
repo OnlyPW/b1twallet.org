@@ -34,47 +34,61 @@ api.interceptors.response.use(
 // Wallet API
 export const walletApi = {
   // Mnemonic
-  generateMnemonic: (strength = 128) => 
+  generateMnemonic: (strength = 128) =>
     api.post('/api/wallet/generate-mnemonic', { strength }),
-  
-  validateMnemonic: (mnemonic) => 
+
+  validateMnemonic: (mnemonic) =>
     api.post('/api/wallet/validate-mnemonic', { mnemonic }),
-  
+
   // XPUB
   deriveXpub: (mnemonic, account = 0) =>
     api.post('/api/wallet/derive-xpub', { mnemonic, account }),
-  
+
   // Addresses
   deriveAddress: (mnemonic, index = 0, change = 0) =>
     api.post('/api/wallet/derive-address', { mnemonic, index, change }),
-  
+
   deriveAddresses: (mnemonic, count = 5, change = 0, startIndex = 0) =>
     api.post('/api/wallet/derive-addresses', { mnemonic, count, change, startIndex }),
-  
+
   // Balance & UTXOs
   getBalance: (address) =>
     api.get(`/api/wallet/balance/${address}`),
-  
+
   getUtxos: (address) =>
     api.get(`/api/wallet/utxos/${address}`),
-  
+
   getTransactions: (address, start = 0, limit = 10) =>
     api.get(`/api/wallet/transactions/${address}`, { params: { start, limit } }),
 
   // Live Balance with mempool
   getLiveBalance: (address, limit = 1000) =>
     api.get(`/api/wallet/live-balance/${address}`, { params: { limit } }),
-  
+
   // Send
   sendTransaction: (data) =>
     api.post('/api/wallet/send', data),
-  
+
   estimateFee: (blocks = 6) =>
     api.get('/api/wallet/estimate-fee', { params: { blocks } }),
+
+  // Broadcast Raw Hex
+  broadcastTransaction: (hex) =>
+    api.post('/api/wallet/broadcast', { hex }),
 
   // Tokens
   getTokens: (address) =>
     api.get(`/api/ordinals/address/${address}/tokens`),
+
+  // Rabb1ts Mining
+  getRabb1tsUtxos: (address) =>
+    api.get(`/api/wallet/rabb1ts/utxo-details/${address}`),
+
+  mineRabb1tsBatch: (data) =>
+    api.post('/api/wallet/rabb1ts/mine-batch', data),
+
+  mineRabb1tsAttempt: (data) =>
+    api.post('/api/wallet/rabb1ts/mine-attempt', data),
 };
 
 // Health Check
@@ -100,5 +114,8 @@ export const mempoolApi = {
   getTx: (txid) => api.get(`/api/mempool/tx/${txid}`),
   getEntry: (txid) => api.get(`/api/mempool/entry/${txid}`),
 };
+
+export const remoteLog = (level, message, data) =>
+  api.post('/api/debug/log', { level, message, data }).catch(() => { });
 
 export default api;

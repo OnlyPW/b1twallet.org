@@ -1,19 +1,8 @@
 version: '3.8'
 
 services:
-  b1t-core:
-    container_name: b1t-core
-    build:
-      context: ./Bitcore-docker-B1T
-      dockerfile: Dockerfile
-    ports:
-      - "8332:8332"
-      - "8333:8333"
-    volumes:
-      - ./bit.conf:/root/.bit/bit.conf
-    networks:
-      - b1t-network
-    restart: unless-stopped
+  # b1t-core service removed: assumes B1T Node is running externally (Host)
+  # If you want to run the node inside Docker, uncomment the b1t-core service definition block.
 
   wallet-backend:
     container_name: b1t-wallet-backend
@@ -22,27 +11,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
+    env_file:
+      - ./backend/.env
     environment:
-      - NODE_ENV=development
-      - RPC_HOST=b1t-core
-      - RPC_PORT=8332
-      - RPC_USER=user
-      - RPC_PASSWORD=changeme
-      - PORT=3001
-      - CORS_ORIGIN=http://localhost:3000
       - DB_HOST=b1t-db
-      - DB_PORT=5432
-      - DB_USER=b1t
-      - DB_PASSWORD=b1tpass
-      - DB_NAME=b1twallet
-      - INDEXER_ENABLED=true
-      - INDEXER_START_HEIGHT=0
     networks:
       - b1t-network
     depends_on:
       - b1t-db
-      - b1t-core
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   wallet-frontend:
     container_name: b1t-wallet-frontend
@@ -73,31 +52,6 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - b1t-network
-    restart: unless-stopped
-  
-  b1t-ord-indexer:
-    container_name: b1t-ord-indexer
-    build:
-      context: ./B1T-20-Indexer
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - RUST_LOG=info
-      - RPC_HOST=b1t-core
-      - RPC_PORT=8332
-      - RPC_USER=user
-      - RPC_PASS=changeme
-      - DB_HOST=b1t-db
-      - DB_PORT=5432
-      - DB_USER=b1t
-      - DB_PASS=b1tpass
-      - DB_NAME=b1twallet
-    networks:
-      - b1t-network
-    depends_on:
-      - b1t-db
-      - b1t-core
     restart: unless-stopped
 
 networks:

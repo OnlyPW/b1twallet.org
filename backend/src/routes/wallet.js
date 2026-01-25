@@ -85,11 +85,11 @@ router.post('/derive-address', (req, res) => {
 
     const seed = bip39.mnemonicToSeedSync(mnemonic);
     const root = bip32.fromSeed(seed, B1T_NETWORK);
-    
+
     // BIP44 Path: m/44'/3141'/0'/change/index (SLIP-044 für B1T)
     const path = `m/44'/${B1T_COIN_TYPE}'/0'/${change}/${index}`;
     const child = root.derivePath(path);
-    
+
     const { address } = bitcoin.payments.p2pkh({
       pubkey: child.publicKey,
       network: B1T_NETWORK,
@@ -117,7 +117,7 @@ router.post('/derive-addresses', (req, res) => {
 
     const seed = bip39.mnemonicToSeedSync(mnemonic);
     const root = bip32.fromSeed(seed, B1T_NETWORK);
-    
+
     const addresses = [];
     for (let i = startIndex; i < startIndex + count; i++) {
       const path = `m/44'/${B1T_COIN_TYPE}'/0'/${change}/${i}`;
@@ -126,7 +126,7 @@ router.post('/derive-addresses', (req, res) => {
         pubkey: child.publicKey,
         network: B1T_NETWORK,
       });
-      
+
       addresses.push({
         index: i,
         address,
@@ -226,7 +226,7 @@ router.get('/live-balance/:address', async (req, res) => {
     let utxos = [];
     try {
       utxos = useIndexer ? await dbWallet.getAddressUtxos(address) : await rpcClient.getAddressUtxos(address);
-    } catch {}
+    } catch { }
     const utxoMap = new Map(utxos.map(u => [`${u.txid}:${u.outputIndex}`, u.satoshis]));
 
     // Mempool scannen (begrenzt)
@@ -270,7 +270,7 @@ router.get('/live-balance/:address', async (req, res) => {
           }
         }
       }
-    } catch {}
+    } catch { }
 
     const confirmed = Number(base.balance || 0);
     const pendingOut = pendingOutSats / 100000000;
@@ -303,14 +303,14 @@ router.get('/transactions/:address', async (req, res) => {
   try {
     const { address } = req.params;
     const { start = 0, limit = 10 } = req.query;
-    
+
     const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
     let transactions = [];
     let count = 0;
     // Hole chainTip ausschließlich über RPC, fallback auf DB-Tip – vermeide Explorer-Aufrufe
     let chainTip = 0;
-    try { chainTip = await rpcClient.getBlockCount(); } catch {}
-    if (!chainTip) { try { chainTip = await getTipHeight(); } catch {} }
+    try { chainTip = await rpcClient.getBlockCount(); } catch { }
+    if (!chainTip) { try { chainTip = await getTipHeight(); } catch { } }
 
     if (useIndexer) {
       const rows = await dbWallet.getAddressTransactions(address, parseInt(start), parseInt(limit));
@@ -406,7 +406,7 @@ router.get('/transactions/:address', async (req, res) => {
             time: t.time || tx.blocktime || tx.time || undefined,
             blocktime: t.blocktime || tx.blocktime || tx.time || undefined,
           };
-        } catch {}
+        } catch { }
       }
     }
 
@@ -446,7 +446,7 @@ router.post('/send', async (req, res) => {
       const relay = (network && typeof network.relayfee === 'number') ? network.relayfee : 0.0001;
       const dynMin = (mempool && typeof mempool.mempoolminfee === 'number') ? mempool.mempoolminfee : 0;
       minFee = Math.max(relay, dynMin, 0.0001);
-    } catch {}
+    } catch { }
 
     const effectiveFee = Math.max(typeof fee === 'number' ? fee : 0.0001, minFee);
 
@@ -470,7 +470,7 @@ router.post('/send', async (req, res) => {
         let list = useIndexer ? await dbWallet.getAddressUtxos(addr) : await rpcClient.getAddressUtxos(addr);
         // Fallback auf RPC/Explorer, falls Indexer (oder primärer Pfad) keine UTXOs liefert
         if (!Array.isArray(list) || list.length === 0) {
-          try { list = await rpcClient.getAddressUtxos(addr); } catch {}
+          try { list = await rpcClient.getAddressUtxos(addr); } catch { }
         }
         for (const u of list) {
           utxos.push({ ...u, ownerAddress: addr, ownerIndex: idx });
@@ -480,7 +480,7 @@ router.post('/send', async (req, res) => {
       // Single address mode
       let list = useIndexer ? await dbWallet.getAddressUtxos(fromAddress) : await rpcClient.getAddressUtxos(fromAddress);
       if (!Array.isArray(list) || list.length === 0) {
-        try { list = await rpcClient.getAddressUtxos(fromAddress); } catch {}
+        try { list = await rpcClient.getAddressUtxos(fromAddress); } catch { }
       }
       utxos = list.map(u => ({ ...u, ownerAddress: fromAddress, ownerIndex: addressIndex }));
     }
@@ -499,8 +499,8 @@ router.post('/send', async (req, res) => {
     }
 
     if (totalInput < amountSat + feeSat) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: 'Unzureichendes Guthaben',
         required: (amountSat + feeSat) / 100000000,
         available: totalInput / 100000000
@@ -519,7 +519,7 @@ router.post('/send', async (req, res) => {
         try {
           const txObj = await explorerClient.getTransaction(utxo.txid);
           txHex = txObj?.hex || txObj?.rawtx || txObj?.raw || (txObj?.tx && txObj.tx.hex) || null;
-        } catch (explErr) {}
+        } catch (explErr) { }
 
         if (!txHex) {
           const msg = String(e.message || '').toLowerCase();
@@ -593,7 +593,7 @@ router.get('/estimate-fee', async (req, res) => {
       const relay = (network && typeof network.relayfee === 'number') ? network.relayfee : 0.0001;
       const dynMin = (mempool && typeof mempool.mempoolminfee === 'number') ? mempool.mempoolminfee : 0;
       minFee = Math.max(relay, dynMin, 0.0001);
-    } catch {}
+    } catch { }
 
     // Ensure suggested fee respects minimum
     const suggested = Math.max(fee, minFee);
@@ -603,5 +603,235 @@ router.get('/estimate-fee', async (req, res) => {
   }
 });
 
-export default router;
+// Broadcast Raw Transaction
+router.post('/broadcast', async (req, res) => {
+  try {
+    const { hex } = req.body;
+    if (!hex || typeof hex !== 'string') {
+      return res.status(400).json({ success: false, error: 'Raw hex missing' });
+    }
+    const txid = await rpcClient.sendRawTransaction(hex);
+    res.json({ success: true, txid });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
+// ========== RABB1TS MINING ENDPOINTS ==========
+
+// Mine a single attempt (create + sign via RPC, check TXID)
+router.post('/rabb1ts/mine-attempt', async (req, res) => {
+  try {
+    const { txid, vout, address, wif, scriptPubKey, satoshis, sequence, targetZeros = 5 } = req.body;
+
+    if (!txid || vout === undefined || !address || !wif || !scriptPubKey || !satoshis) {
+      return res.status(400).json({ success: false, error: 'Missing required parameters' });
+    }
+
+    const FEE = 192000; // ~0.00192 B1T (like original miner)
+    const outputAmount = (satoshis - FEE) / 1e8;
+
+    if (outputAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'UTXO too small for fee' });
+    }
+
+    // Create raw transaction with specific sequence
+    const rawTx = await rpcClient.call('createrawtransaction', [
+      [{ txid, vout, sequence: sequence || 0 }],
+      { [address]: outputAmount },
+      0
+    ]);
+
+    // Sign the transaction
+    const signed = await rpcClient.call('signrawtransaction', [
+      rawTx,
+      [{ txid, vout, scriptPubKey, amount: satoshis / 1e8 }],
+      [wif]
+    ]);
+
+    if (!signed.complete) {
+      return res.status(400).json({ success: false, error: 'Signing failed', details: signed.errors });
+    }
+
+    // Decode to get TXID
+    const decoded = await rpcClient.call('decoderawtransaction', [signed.hex]);
+    const resultTxid = decoded.txid;
+
+    // Check if TXID matches target
+    const targetPrefix = '0'.repeat(targetZeros);
+    const isMatch = resultTxid.startsWith(targetPrefix);
+
+    res.json({
+      success: true,
+      txid: resultTxid,
+      hex: signed.hex,
+      sequence,
+      isMatch,
+      targetZeros
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mine a batch of attempts (for efficiency) - PARALLEL VERSION
+router.post('/rabb1ts/mine-batch', async (req, res) => {
+  try {
+    const { txid, vout, address, wif, scriptPubKey, satoshis, startSequence = 0, batchSize = 100, targetZeros = 5 } = req.body;
+
+    if (!txid || vout === undefined || !address || !wif || !scriptPubKey || !satoshis) {
+      return res.status(400).json({ success: false, error: 'Missing required parameters' });
+    }
+
+    const FEE = 192000;
+    const outputAmount = (satoshis - FEE) / 1e8;
+
+    if (outputAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'UTXO too small for fee' });
+    }
+
+    const targetPrefix = '0'.repeat(targetZeros);
+
+    // Create array of sequences to process
+    const sequences = Array.from({ length: batchSize }, (_, i) => startSequence + i);
+
+    // Process in parallel chunks (don't overload RPC)
+    const PARALLEL_LIMIT = 10; // Process 10 at a time
+    let foundResult = null;
+    let processed = 0;
+
+    for (let i = 0; i < sequences.length && !foundResult; i += PARALLEL_LIMIT) {
+      const chunk = sequences.slice(i, i + PARALLEL_LIMIT);
+
+      const results = await Promise.all(chunk.map(async (seq) => {
+        try {
+          const rawTx = await rpcClient.call('createrawtransaction', [
+            [{ txid, vout, sequence: seq }],
+            { [address]: outputAmount },
+            0
+          ]);
+
+          const signed = await rpcClient.call('signrawtransaction', [
+            rawTx,
+            [{ txid, vout, scriptPubKey, amount: satoshis / 1e8 }],
+            [wif]
+          ]);
+
+          if (signed.complete) {
+            const decoded = await rpcClient.call('decoderawtransaction', [signed.hex]);
+            return {
+              success: true,
+              txid: decoded.txid,
+              hex: signed.hex,
+              sequence: seq,
+              isMatch: decoded.txid.startsWith(targetPrefix)
+            };
+          }
+          return { success: true, isMatch: false };
+        } catch (err) {
+          return { success: false, error: err.message };
+        }
+      }));
+
+      // Count successful attempts and check for matches
+      for (const result of results) {
+        if (result.success) {
+          processed++;
+          if (result.isMatch && !foundResult) {
+            foundResult = {
+              txid: result.txid,
+              hex: result.hex,
+              sequence: result.sequence
+            };
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      found: !!foundResult,
+      result: foundResult,
+      processed,
+      nextSequence: startSequence + batchSize
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get UTXO details including scriptPubKey for mining
+router.get('/rabb1ts/utxo-details/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    // Get UTXOs from DB or RPC
+    const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
+    let utxos = [];
+
+    try {
+      utxos = useIndexer
+        ? await dbWallet.getAddressUtxos(address)
+        : await rpcClient.getAddressUtxos(address);
+    } catch (e) {
+      console.warn('UTXO fetch failed, trying fallback:', e.message);
+      try {
+        utxos = await rpcClient.getAddressUtxos(address);
+      } catch { }
+    }
+
+    if (!utxos || utxos.length === 0) {
+      return res.json({ success: true, utxos: [] });
+    }
+
+    // Generate scriptPubKey from address (P2PKH)
+    let defaultScriptPubKey = null;
+    try {
+      const outputScript = bitcoin.address.toOutputScript(address, B1T_NETWORK);
+      defaultScriptPubKey = outputScript.toString('hex');
+    } catch (e) {
+      console.warn('Could not generate scriptPubKey from address:', e.message);
+    }
+
+    // Build enriched UTXOs
+    const enrichedUtxos = [];
+    for (const utxo of utxos) {
+      const vout = utxo.outputIndex !== undefined ? utxo.outputIndex : (utxo.vout !== undefined ? utxo.vout : 0);
+      const satoshis = utxo.satoshis || utxo.value || 0;
+
+      let scriptPubKey = utxo.script || utxo.scriptPubKey || defaultScriptPubKey;
+      let confirmations = 0;
+
+      // Try to get actual scriptPubKey from RPC (optional enhancement)
+      if (!scriptPubKey) {
+        try {
+          const txData = await rpcClient.call('getrawtransaction', [utxo.txid, true]);
+          const voutData = txData.vout[vout];
+          scriptPubKey = voutData?.scriptPubKey?.hex || defaultScriptPubKey;
+          confirmations = txData.confirmations || 0;
+        } catch {
+          // Use default scriptPubKey
+          scriptPubKey = defaultScriptPubKey;
+        }
+      }
+
+      // Only include if we have a scriptPubKey
+      if (scriptPubKey) {
+        enrichedUtxos.push({
+          txid: utxo.txid,
+          vout: vout,
+          satoshis: satoshis,
+          scriptPubKey: scriptPubKey,
+          confirmations: confirmations
+        });
+      }
+    }
+
+    res.json({ success: true, utxos: enrichedUtxos });
+  } catch (error) {
+    console.error('rabb1ts/utxo-details error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+export default router;

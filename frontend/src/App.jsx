@@ -10,12 +10,13 @@ import Receive from './pages/Receive';
 import Explorer from './pages/Explorer';
 import Mempool from './pages/Mempool';
 import Addresses from './pages/Addresses';
+import MineRabb1ts from './pages/MineRabb1ts';
 import './App.css';
 
 function App() {
   return (
     <Router>
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
@@ -41,6 +42,7 @@ function App() {
           <Route path="send" element={<Send />} />
           <Route path="receive" element={<Receive />} />
           <Route path="addresses" element={<Addresses />} />
+          <Route path="mine" element={<MineRabb1ts />} />
           <Route path="explorer" element={<Explorer />} />
           <Route path="mempool" element={<Mempool />} />
         </Route>
@@ -50,5 +52,3 @@ function App() {
 }
 
 export default App;
-
-

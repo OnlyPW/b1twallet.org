@@ -11,17 +11,16 @@ const B1T_NETWORK = {
   wif: 0x9E,
 };
 
-async function processBlock(height) {
-  const hash = await rpcClient.call('getblockhash', [height]);
-  const block = await rpcClient.call('getblock', [hash, 2]); // verbosity 2 = mit TX-Details
 
+
+async function processBlockData(height, block, client) {
   await insertBlock({
     height,
-    hash,
+    hash: block.hash,
     prev_hash: block.previousblockhash,
     time: block.time,
     tx_count: Array.isArray(block.tx) ? block.tx.length : 0,
-  });
+  }, client);
 
   for (const tx of block.tx || []) {
     await insertTransaction({
@@ -31,7 +30,7 @@ async function processBlock(height) {
       size: tx.size,
       vsize: tx.vsize,
       version: tx.version,
-    });
+    }, client);
 
     // Inputs: mark previous outputs as spent
     for (const vin of tx.vin || []) {
@@ -39,7 +38,7 @@ async function processBlock(height) {
       const prevTxid = vin.txid;
       const prevVout = vin.vout;
       if (prevTxid !== undefined && prevVout !== undefined) {
-        await markOutputSpent(prevTxid, prevVout, tx.txid, height);
+        await markOutputSpent(prevTxid, prevVout, tx.txid, height, client);
       }
     }
 
@@ -62,9 +61,14 @@ async function processBlock(height) {
         value_satoshi: value,
         script_pub_key: spk.hex || spk.asm || null,
         block_height: height,
-      });
+      }, client);
     }
   }
+}
+
+async function fetchBlock(height) {
+  const hash = await rpcClient.call('getblockhash', [height]);
+  return await rpcClient.call('getblock', [hash, 2]); // verbosity 2 = mit TX-Details
 }
 
 export async function startIndexer() {
@@ -96,11 +100,62 @@ export async function startIndexer() {
   async function syncLoop() {
     try {
       const chainTip = await rpcClient.getBlockCount();
+      if (nextHeight > chainTip) return;
+
+      console.log(`🚀 Indexer startet bei Block ${nextHeight} (Chain Tip: ${chainTip})`);
+
+      // Prefetch des ersten Blocks
+      let nextBlockPromise = fetchBlock(nextHeight);
+
       while (nextHeight <= chainTip) {
-        console.log(`🧩 Indexiere Block ${nextHeight}/${chainTip}`);
-        await processBlock(nextHeight);
-        nextHeight += 1;
-        currentTip = nextHeight - 1;
+        // Log nur alle 100 Blöcke oder wenn fast am Tip
+        if (nextHeight % 100 === 0 || nextHeight > chainTip - 10) {
+          console.log(`🧩 Indexiere Block ${nextHeight}/${chainTip}`);
+        }
+
+        // 1. Hole Daten (warte auf Promise)
+        let blockData;
+        try {
+          blockData = await nextBlockPromise;
+        } catch (e) {
+          console.error(`Fehler beim Laden von Block ${nextHeight}:`, e.message);
+          await new Promise(r => setTimeout(r, 2000));
+          // Retry fetching this block
+          nextBlockPromise = fetchBlock(nextHeight);
+          continue;
+        }
+
+        // 2. Starte Fetch für NÄCHSTEN Block (parallel zur DB-Arbeit)
+        if (nextHeight < chainTip) {
+          nextBlockPromise = fetchBlock(nextHeight + 1);
+        }
+
+        // 3. DB Transaction
+        const client = await getPool().connect();
+        try {
+          await client.query('BEGIN');
+          await processBlockData(nextHeight, blockData, client);
+          await client.query('COMMIT');
+        } catch (e) {
+          await client.query('ROLLBACK');
+          console.error(`Fehler beim Speichern von Block ${nextHeight}:`, e.message);
+          throw e; // Break loop, wait for retry interval
+        } finally {
+          client.release();
+        }
+
+        nextHeight++;
+
+        // Wenn wir den Chain Tip erreichen, aktualisieren wir ihn, falls neue Blöcke angekommen sind
+        if (nextHeight > chainTip) {
+          const newTip = await rpcClient.getBlockCount();
+          if (newTip > chainTip) {
+            // Es gibt noch mehr zu tun, loop läuft weiter (via while condition)
+            // loop variable chainTip ist local const, also müssen wir vorsichtig sein.
+            // Aber besser ist `break` und neu aufrufen via setInterval loop
+            break;
+          }
+        }
       }
     } catch (e) {
       console.error('Indexer Fehler:', e.message);
@@ -109,7 +164,21 @@ export async function startIndexer() {
 
   // Initiale Synchronisierung & Polling
   await syncLoop();
-  setInterval(syncLoop, 10_000); // alle 10 Sekunden neue Blöcke prüfen
+
+  // Polling Loop
+  setInterval(async () => {
+    // Nur starten wenn wir nicht gerade noch im syncLoop sind? 
+    // Da syncLoop async ist und blockiert (await), wird `setInterval` Stacken wenn wir nicht aufpassen?
+    // Nein, `setInterval` feuert blind. Besser: `setTimeout` rekursiv oder Flag.
+    // Einfachster Fix: syncLoop als 'running' markieren.
+  }, 10_000);
+
+  // Besserer Loop:
+  const run = async () => {
+    await syncLoop();
+    setTimeout(run, 5000);
+  };
+  run();
 }
 
 export default { startIndexer };

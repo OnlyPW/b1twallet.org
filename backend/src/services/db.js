@@ -90,9 +90,20 @@ export async function getTipHeight() {
   return res.rows[0]?.tip ?? -1;
 }
 
-export async function upsertAddressStats(address, { addReceived = 0, addSent = 0, height = 0 }) {
-  const client = await getPool().connect();
+// Helper to use provided client or get a new one
+async function withClient(providedClient, callback) {
+  const client = providedClient || await getPool().connect();
   try {
+    return await callback(client);
+  } finally {
+    if (!providedClient) {
+      client.release();
+    }
+  }
+}
+
+export async function upsertAddressStats(address, { addReceived = 0, addSent = 0, height = 0 }, dbClient = null) {
+  return withClient(dbClient, async (client) => {
     await client.query(
       `INSERT INTO addresses(address, balance_satoshi, received_satoshi, sent_satoshi, last_seen_height)
        VALUES ($1, $2, $3, $4, $5)
@@ -104,14 +115,11 @@ export async function upsertAddressStats(address, { addReceived = 0, addSent = 0
          last_seen_height = GREATEST(addresses.last_seen_height, $5)`,
       [address, addReceived - addSent, addReceived, addSent, height]
     );
-  } finally {
-    client.release();
-  }
+  });
 }
 
-export async function markOutputSpent(prevTxid, prevVout, spentTxid, spentHeight) {
-  const client = await getPool().connect();
-  try {
+export async function markOutputSpent(prevTxid, prevVout, spentTxid, spentHeight, dbClient = null) {
+  return withClient(dbClient, async (client) => {
     const { rows } = await client.query('SELECT address, value_satoshi FROM outputs WHERE txid=$1 AND vout=$2', [prevTxid, prevVout]);
     if (rows.length === 0) return;
     const { address, value_satoshi } = rows[0];
@@ -120,16 +128,13 @@ export async function markOutputSpent(prevTxid, prevVout, spentTxid, spentHeight
       [prevTxid, prevVout, spentTxid, spentHeight]
     );
     if (address) {
-      await upsertAddressStats(address, { addSent: value_satoshi, height: spentHeight });
+      await upsertAddressStats(address, { addSent: value_satoshi, height: spentHeight }, client);
     }
-  } finally {
-    client.release();
-  }
+  });
 }
 
-export async function insertOutput({ txid, vout, address, value_satoshi, script_pub_key, block_height }) {
-  const client = await getPool().connect();
-  try {
+export async function insertOutput({ txid, vout, address, value_satoshi, script_pub_key, block_height }, dbClient = null) {
+  return withClient(dbClient, async (client) => {
     await client.query(
       `INSERT INTO outputs(txid, vout, address, value_satoshi, script_pub_key, block_height, spent)
        VALUES ($1,$2,$3,$4,$5,$6,FALSE)
@@ -137,39 +142,31 @@ export async function insertOutput({ txid, vout, address, value_satoshi, script_
       [txid, vout, address || null, value_satoshi, script_pub_key || null, block_height]
     );
     if (address) {
-      await upsertAddressStats(address, { addReceived: value_satoshi, height: block_height });
+      await upsertAddressStats(address, { addReceived: value_satoshi, height: block_height }, client);
     }
-  } finally {
-    client.release();
-  }
+  });
 }
 
-export async function insertTransaction({ txid, block_height, time, size, vsize, version }) {
-  const client = await getPool().connect();
-  try {
+export async function insertTransaction({ txid, block_height, time, size, vsize, version }, dbClient = null) {
+  return withClient(dbClient, async (client) => {
     await client.query(
       `INSERT INTO transactions(txid, block_height, time, size, vsize, version)
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (txid) DO NOTHING`,
       [txid, block_height ?? null, time ?? null, size ?? null, vsize ?? null, version ?? null]
     );
-  } finally {
-    client.release();
-  }
+  });
 }
 
-export async function insertBlock({ height, hash, prev_hash, time, tx_count }) {
-  const client = await getPool().connect();
-  try {
+export async function insertBlock({ height, hash, prev_hash, time, tx_count }, dbClient = null) {
+  return withClient(dbClient, async (client) => {
     await client.query(
       `INSERT INTO blocks(height, hash, prev_hash, time, tx_count)
        VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (height) DO NOTHING`,
       [height, hash, prev_hash || null, time ?? null, tx_count ?? 0]
     );
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock };

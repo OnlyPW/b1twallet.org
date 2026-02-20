@@ -3,7 +3,7 @@ version: '3.8'
 services:
   bitcore:
     build:
-      context: ./TEMP/Bitcore-docker-B1T
+      context: https://github.com/OnlyPW/Bitcore-docker-B1T.git#main
     container_name: b1t-core
     restart: unless-stopped
     environment:
@@ -15,7 +15,6 @@ services:
       - RPC_ALLOW_IP=0.0.0.0/0
     volumes:
       - bitcore-data:/data
-      - ./TEMP/Bitcore-docker-B1T/config:/config
     ports:
       - "8333:8333"
       - "8332:8332"

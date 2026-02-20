@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wallet, Send, Download, RefreshCw, Eye, EyeOff, TrendingUp, Clock } from 'lucide-react';
+import { Wallet, Send, Download, RefreshCw, Eye, EyeOff, TrendingUp, Clock, Layers, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { walletApi, getIndexerStatus } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import useWalletStore from '../store/walletStore';
-import Tokens from './Tokens'; // Import the Tokens component
+import Tokens from './Tokens';
+import Ordinals from './Ordinals';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -19,7 +20,9 @@ export default function Dashboard() {
   const [indexer, setIndexer] = useState(null);
   const [live, setLive] = useState(null);
   const [xpub, setXpub] = useState(null);
-  const [activeTab, setActiveTab] = useState('transactions'); // New state for active tab
+  const [activeTab, setActiveTab] = useState('transactions');
+  const [utxoCount, setUtxoCount] = useState(0);
+  const [consolidating, setConsolidating] = useState(false);
   const pendingInRef = useRef(new Map());
 
   useEffect(() => {
@@ -138,6 +141,14 @@ export default function Dashboard() {
         setLive(null);
       }
 
+      try {
+        const utxoRes = await walletApi.getUtxos(currentAddr.address);
+        const utxoList = utxoRes?.utxos || utxoRes || [];
+        setUtxoCount(Array.isArray(utxoList) ? utxoList.length : 0);
+      } catch {
+        setUtxoCount(0);
+      }
+
       const txResults = await Promise.allSettled(
         allAddresses.map((addr) => walletApi.getTransactions(addr, 0, 20))
       );
@@ -192,6 +203,32 @@ export default function Dashboard() {
   const formatAmount = (amount) => {
     if (typeof amount !== 'number') return '0.00000000';
     return amount.toFixed(8);
+  };
+
+  const handleConsolidate = async () => {
+    let mnemonic = null;
+    try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
+    if (!mnemonic) {
+      toast.error(t('inscribe.walletLocked'));
+      return;
+    }
+    setConsolidating(true);
+    try {
+      const res = await walletApi.consolidateUtxos({
+        mnemonic,
+        addressIndex: useWalletStore.getState().currentAddressIndex || 0,
+      });
+      if (res.success && res.txid) {
+        toast.success(t('consolidate.success', { count: res.inputCount, amount: res.consolidatedB1T?.toFixed(2) }));
+        setTimeout(() => loadWalletData(), 3000);
+      } else if (res.success && res.message) {
+        toast.success(t('consolidate.alreadyDone'));
+      }
+    } catch (err) {
+      toast.error(t('consolidate.error', { message: err.message }));
+    } finally {
+      setConsolidating(false);
+    }
   };
 
   if (!isUnlocked || !addressDetails) {
@@ -356,6 +393,27 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* UTXO Consolidation hint */}
+      {utxoCount > 3 && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card bg-dark-200 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Layers size={20} className="text-b1t-orange flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">{t('consolidate.hint', { count: utxoCount })}</p>
+              <p className="text-xs text-gray-400">{t('consolidate.hintDesc')}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleConsolidate}
+            disabled={consolidating}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-orange text-white text-sm whitespace-nowrap disabled:opacity-50"
+          >
+            {consolidating ? <Loader size={16} className="animate-spin" /> : <Layers size={16} />}
+            {consolidating ? t('consolidate.running') : t('consolidate.button')}
+          </button>
+        </motion.div>
+      )}
+
       {/* Tab Navigation for Transactions and Tokens */}
       <div className="flex border-b border-dark-200">
         <button 
@@ -363,6 +421,12 @@ export default function Dashboard() {
           onClick={() => setActiveTab('transactions')}
         >
           {t('tx.latest')}
+        </button>
+        <button 
+          className={`px-4 py-2 text-lg font-semibold ${activeTab === 'ordinals' ? 'text-b1t-orange border-b-2 border-b1t-orange' : 'text-gray-400'}`}
+          onClick={() => setActiveTab('ordinals')}
+        >
+          {t('ordinals.title')}
         </button>
         <button 
           className={`px-4 py-2 text-lg font-semibold ${activeTab === 'tokens' ? 'text-b1t-orange border-b-2 border-b1t-orange' : 'text-gray-400'}`}
@@ -418,6 +482,7 @@ export default function Dashboard() {
           )}
         </div>
       )}
+      {activeTab === 'ordinals' && <Ordinals />}
       {activeTab === 'tokens' && <Tokens />}
     </div>
   );

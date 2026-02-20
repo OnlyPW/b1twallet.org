@@ -3,10 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import fetch from 'node-fetch';
 import walletRoutes from './routes/wallet.js';
 import explorerRoutes from './routes/explorer.js';
 import mempoolRoutes from './routes/mempool.js';
+import ordinalsRoutes from './routes/ordinals.js';
 import rpcClient from './services/rpcClient.js';
 import { initSchema, getTipHeight } from './services/db.js';
 import { startIndexer } from './indexer/indexer.js';
@@ -15,7 +15,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const ORD_INDEXER_URL = process.env.ORD_INDEXER_URL || 'http://b1t-ord-indexer:8080';
 
 // Security Middleware
 app.use(helmet());
@@ -42,8 +41,8 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Body Parser
-app.use(express.json({ limit: '10mb' }));
+// Body Parser (50mb for large image inscriptions)
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Health Check
@@ -63,16 +62,8 @@ app.post('/api/debug/log', (req, res) => {
   res.json({ success: true });
 });
 
-// Ordinals Indexer Proxy
-app.use('/api/ordinals', async (req, res) => {
-  try {
-    const response = await fetch(`${ORD_INDEXER_URL}${req.url}`);
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Ordinals indexer not available' });
-  }
-});
+// Ordinals Routes (inscription, estimation, broadcast)
+app.use('/api/ordinals', ordinalsRoutes);
 
 // Test RPC Connection
 app.get('/api/test-connection', async (req, res) => {

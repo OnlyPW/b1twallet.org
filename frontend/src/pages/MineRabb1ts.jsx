@@ -4,6 +4,7 @@ import { Pickaxe, Play, Pause, Zap, Database, Terminal, AlertCircle, RefreshCw, 
 import useWalletStore from '../store/walletStore';
 import { walletApi, remoteLog } from '../services/api';
 import { toast } from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as tinysecp from 'tiny-secp256k1';
@@ -29,6 +30,7 @@ const getAvailableCores = () => {
 };
 
 export default function MineRabb1ts() {
+    const { t } = useTranslation();
     const { getCurrentAddress, isUnlocked, currentAddressIndex } = useWalletStore();
     const currentAccount = getCurrentAddress();
     const address = currentAccount ? currentAccount.address : '';
@@ -104,11 +106,11 @@ export default function MineRabb1ts() {
             if (validUtxos.length > 0 && !selectedUtxo) {
                 setSelectedUtxo(validUtxos[0]);
             }
-            addLog(`Loaded ${validUtxos.length} minable UTXOs`, 'info');
+            addLog(t('mine.logLoaded', { count: validUtxos.length }), 'info');
         } catch (error) {
             console.error(error);
-            toast.error('Failed to load UTXOs');
-            addLog(`Error loading UTXOs: ${error.message}`, 'error');
+            toast.error(t('mine.logLoaded', { count: 0 }));
+            addLog(`Error: ${error.message}`, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -141,7 +143,7 @@ export default function MineRabb1ts() {
 
     // Reload UTXOs and continue mining with new UTXO
     const reloadAndContinue = async (wif, justUsedUtxoKey) => {
-        addLog('🔄 Reloading UTXOs for continued mining...', 'info');
+        addLog('🔄 ' + t('mine.logReloading'), 'info');
         
         // Mark the just-used UTXO as used
         if (justUsedUtxoKey) {
@@ -164,7 +166,7 @@ export default function MineRabb1ts() {
             if (validUtxos.length > 0) {
                 setUtxos(validUtxos);
                 setSelectedUtxo(validUtxos[0]);
-                addLog(`Found ${validUtxos.length} fresh UTXOs, continuing mining...`, 'info');
+                addLog(t('mine.logFreshUtxos', { count: validUtxos.length }), 'info');
                 
                 // Reset and restart workers with new UTXO
                 foundRef.current = false;
@@ -177,12 +179,12 @@ export default function MineRabb1ts() {
                     workerLoopInternal(i, wif, startSeq, validUtxos[0]);
                 }
             } else {
-                addLog('⏳ No fresh UTXOs available yet. Waiting for confirmation...', 'warning');
+                addLog('⏳ ' + t('mine.logNoFreshUtxos'), 'warning');
                 
                 // Retry after some time
                 setTimeout(async () => {
                     if (miningRef.current) {
-                        addLog('🔄 Retrying UTXO reload...', 'info');
+                        addLog('🔄 ' + t('mine.logRetrying'), 'info');
                         reloadAndContinue(wif, null);
                     }
                 }, 10000); // Retry after 10 seconds
@@ -242,9 +244,9 @@ export default function MineRabb1ts() {
                         // Mark this TXID as found
                         foundTxidsRef.current.add(foundTxid);
                         
-                        addLog(`🐇 Worker ${workerId + 1}: RABB1T FOUND! TXID: ${foundTxid}`, 'success');
+                        addLog('🐇 ' + t('mine.logFound', { id: workerId + 1, txid: foundTxid }), 'success');
                         addLog(`Sequence: ${result.result.sequence}`, 'success');
-                        addLog(`Broadcasted! Confirmed TXID: ${broadcast.txid}`, 'success');
+                        addLog(t('mine.logBroadcasted', { txid: broadcast.txid }), 'success');
                         toast.success('🐇 RABB1T MINED & BROADCASTED!');
                         remoteLog('SUCCESS', 'Rabb1t mined!', { txid: foundTxid, worker: workerId });
                         setRabb1tsFound(prev => prev + 1);
@@ -256,7 +258,7 @@ export default function MineRabb1ts() {
                         if (stopOnFind) {
                             miningRef.current = false;
                             setIsMining(false);
-                            addLog('Stopped mining (Stop on Find enabled)', 'info');
+                            addLog(t('mine.logStoppedOnFind'), 'info');
                             return;
                         } else {
                             // Continue mining with new UTXO
@@ -295,7 +297,7 @@ export default function MineRabb1ts() {
 
         activeWorkers.current--;
         if (activeWorkers.current === 0 && miningRef.current) {
-            addLog('All workers stopped', 'warning');
+            addLog(t('mine.logAllStopped'), 'warning');
         }
     };
 
@@ -306,13 +308,13 @@ export default function MineRabb1ts() {
 
     const startMining = async () => {
         if (!selectedUtxo) {
-            toast.error('Select a UTXO first');
+            toast.error(t('mine.selectUtxoFirst'));
             return;
         }
 
         const wif = getWif();
         if (!wif) {
-            toast.error('Could not retrieve private key. Please unlock wallet again.');
+            toast.error(t('mine.noPrivateKey'));
             return;
         }
 
@@ -330,16 +332,16 @@ export default function MineRabb1ts() {
         usedUtxosRef.current = new Set(); // Reset used UTXOs for new session
         foundTxidsRef.current = new Set(); // Reset found TXIDs for new session
 
-        addLog(`Starting Rabb1ts Miner with ${numWorkers} parallel workers...`, 'info');
-        addLog(`UTXO: ${selectedUtxo.txid.substring(0, 16)}... (${selectedUtxo.satoshis} sats)`, 'info');
-        addLog(`Target: ${targetZeros} leading zeros, Batch: ${batchSize}`, 'info');
+        addLog(t('mine.logStarted', { count: numWorkers }), 'info');
+        addLog(t('mine.logUtxo', { txid: selectedUtxo.txid.substring(0, 16) + '...', sats: selectedUtxo.satoshis }), 'info');
+        addLog(t('mine.logTarget', { zeros: targetZeros, batch: batchSize }), 'info');
         remoteLog('INFO', 'Mining started', { utxo: selectedUtxo.txid, target: targetZeros, workers: numWorkers });
 
         // Start all workers with different starting sequences
         for (let i = 0; i < numWorkers; i++) {
             const startSeq = i * batchSize; // Each worker starts at a different offset
             workerLoop(i, wif, startSeq);
-            addLog(`Worker ${i + 1} started at sequence ${startSeq}`, 'info');
+            addLog(t('mine.logWorkerStarted', { id: i + 1, seq: startSeq }), 'info');
         }
     };
 
@@ -348,7 +350,7 @@ export default function MineRabb1ts() {
         foundRef.current = true; // Signal all workers to stop
         setIsMining(false);
         setHashRate(0);
-        addLog('Miner Stopped', 'warning');
+        addLog(t('mine.logStopped'), 'warning');
         remoteLog('INFO', 'Mining stopped');
     };
 
@@ -357,8 +359,8 @@ export default function MineRabb1ts() {
             <div className="max-w-4xl mx-auto">
                 <div className="card p-8 text-center">
                     <AlertCircle size={48} className="mx-auto text-b1t-orange mb-4" />
-                    <h2 className="text-2xl font-bold mb-2">Wallet Locked</h2>
-                    <p className="text-gray-400">Please unlock your wallet to access the Rabb1ts Miner.</p>
+                    <h2 className="text-2xl font-bold mb-2">{t('mine.walletLocked')}</h2>
+                    <p className="text-gray-400">{t('mine.walletLockedDesc')}</p>
                 </div>
             </div>
         );
@@ -375,10 +377,8 @@ export default function MineRabb1ts() {
                 <div className="inline-flex p-4 bg-gradient-orange rounded-full">
                     <Pickaxe size={32} className="text-white" />
                 </div>
-                <h1 className="text-4xl font-bold glow-text">🐇 Rabb1ts Miner</h1>
-                <p className="text-gray-400">
-                    Mine RABB1TS tokens by finding transaction IDs starting with zeros
-                </p>
+                <h1 className="text-4xl font-bold glow-text">🐇 {t('mine.title')}</h1>
+                <p className="text-gray-400">{t('mine.subtitle')}</p>
             </motion.div>
 
             <div className="grid lg:grid-cols-3 gap-6">
@@ -390,20 +390,20 @@ export default function MineRabb1ts() {
                 >
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <Database size={20} className="text-b1t-orange" />
-                        Mining Config
+                        {t('mine.config')}
                     </h2>
 
                     {/* UTXO Selection */}
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                            <label className="text-sm text-gray-400">Select UTXO</label>
+                            <label className="text-sm text-gray-400">{t('mine.selectUtxo')}</label>
                             <button
                                 onClick={loadUtxos}
                                 disabled={isLoading}
                                 className="text-xs text-b1t-orange hover:text-orange-400 flex items-center gap-1"
                             >
                                 <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
-                                Refresh
+                                {t('mine.refresh')}
                             </button>
                         </div>
                         <select
@@ -416,7 +416,7 @@ export default function MineRabb1ts() {
                             className="input w-full text-sm"
                             disabled={isMining}
                         >
-                            {utxos.length === 0 && <option value="">No UTXOs available</option>}
+                            {utxos.length === 0 && <option value="">{t('mine.noUtxos')}</option>}
                             {utxos.map((u, i) => (
                                 <option key={i} value={`${u.txid}:${u.vout}`}>
                                     {(u.satoshis / 1e8).toFixed(8)} B1T • {u.txid.substring(0, 12)}...
@@ -429,7 +429,7 @@ export default function MineRabb1ts() {
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400 flex items-center gap-2">
                             <Cpu size={14} />
-                            Parallel Workers ({getAvailableCores()} cores available)
+                            {t('mine.workers')} ({t('mine.coresAvailable', { count: getAvailableCores() })})
                         </label>
                         <select
                             value={numWorkers}
@@ -445,26 +445,26 @@ export default function MineRabb1ts() {
 
                     {/* Batch Size */}
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Batch Size per Request</label>
+                        <label className="text-sm text-gray-400">{t('mine.batchSize')}</label>
                         <select
                             value={batchSize}
                             onChange={(e) => setBatchSize(parseInt(e.target.value))}
                             className="input w-full"
                             disabled={isMining}
                         >
-                            <option value={50}>50 (Low)</option>
-                            <option value={100}>100 (Normal)</option>
-                            <option value={200}>200 (Fast)</option>
-                            <option value={500}>500 (Very Fast)</option>
-                            <option value={1000}>1000 (Maximum)</option>
+                            <option value={50}>50 ({t('mine.batchLow')})</option>
+                            <option value={100}>100 ({t('mine.batchNormal')})</option>
+                            <option value={200}>200 ({t('mine.batchFast')})</option>
+                            <option value={500}>500 ({t('mine.batchVeryFast')})</option>
+                            <option value={1000}>1000 ({t('mine.batchMax')})</option>
                         </select>
                     </div>
 
                     {/* Target */}
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Target Difficulty</label>
+                        <label className="text-sm text-gray-400">{t('mine.targetDifficulty')}</label>
                         <div className="w-full bg-dark-400 border border-dark-300 rounded-lg p-3 text-gray-500 cursor-not-allowed">
-                            {targetZeros} Zeros (Fixed)
+                            {t('mine.zerosFixed', { count: targetZeros })}
                         </div>
                     </div>
 
@@ -479,7 +479,7 @@ export default function MineRabb1ts() {
                             className="w-5 h-5 rounded border-dark-300 bg-dark-400 text-b1t-orange focus:ring-b1t-orange cursor-pointer"
                         />
                         <label htmlFor="stopOnFind" className="text-sm text-gray-300 cursor-pointer select-none">
-                            Stop after finding RABB1T
+                            {t('mine.stopOnFind')}
                         </label>
                     </div>
 
@@ -494,9 +494,9 @@ export default function MineRabb1ts() {
                             } ${(!selectedUtxo) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {isMining ? (
-                            <><Pause size={20} /> Stop Miner</>
+                            <><Pause size={20} /> {t('mine.stopMiner')}</>
                         ) : (
-                            <><Play size={20} /> Start Mining ({numWorkers} cores)</>
+                            <><Play size={20} /> {t('mine.startMining', { count: numWorkers })}</>
                         )}
                     </button>
                 </motion.div>
@@ -511,25 +511,25 @@ export default function MineRabb1ts() {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-5 gap-4 mb-4">
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
-                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Rate</div>
+                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('mine.rate')}</div>
                             <div className="text-2xl font-mono font-bold text-white">{hashRate} <span className="text-sm text-gray-500">tx/s</span></div>
                         </div>
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
-                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Total</div>
+                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('mine.total')}</div>
                             <div className="text-2xl font-mono font-bold text-b1t-orange">{totalHashes.toLocaleString()}</div>
                         </div>
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
-                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Found</div>
+                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('mine.found')}</div>
                             <div className="text-2xl font-mono font-bold text-green-400">🐇 {rabb1tsFound}</div>
                         </div>
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
-                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Workers</div>
+                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('mine.workersLabel')}</div>
                             <div className="text-2xl font-mono font-bold text-blue-400">{numWorkers}</div>
                         </div>
                         <div className="bg-dark-500 p-4 rounded-lg text-center">
-                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Status</div>
+                            <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('mine.status')}</div>
                             <div className={`text-2xl font-bold ${isMining ? 'text-green-500 animate-pulse' : 'text-gray-500'}`}>
-                                {isMining ? 'MINING' : 'IDLE'}
+                                {isMining ? t('mine.statusMining') : t('mine.statusIdle')}
                             </div>
                         </div>
                     </div>
@@ -549,10 +549,10 @@ export default function MineRabb1ts() {
                     {/* Terminal */}
                     <div className="flex-1 bg-black rounded-lg border border-dark-300 p-4 font-mono text-sm overflow-hidden flex flex-col">
                         <div className="flex items-center gap-2 text-gray-500 border-b border-dark-600 pb-2 mb-2">
-                            <Terminal size={14} /> Miner Output
+                            <Terminal size={14} /> {t('mine.minerOutput')}
                         </div>
                         <div ref={logContainerRef} className="flex-1 overflow-y-auto space-y-1">
-                            {logs.length === 0 && <span className="text-gray-700 italic">Ready to mine...</span>}
+                            {logs.length === 0 && <span className="text-gray-700 italic">{t('mine.readyToMine')}</span>}
                             {logs.map((log, i) => (
                                 <div key={i} className={`
                             ${log.type === 'error' ? 'text-red-400' : ''}
@@ -577,20 +577,20 @@ export default function MineRabb1ts() {
             >
                 <h3 className="font-semibold flex items-center gap-2 mb-3">
                     <Zap size={18} className="text-b1t-orange" />
-                    How Multi-Core Rabb1ts Mining Works
+                    {t('mine.howItWorks')}
                 </h3>
                 <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-400">
                     <div>
-                        <strong className="text-white">1. Parallel Workers</strong>
-                        <p>Each worker processes a different sequence range simultaneously, multiplying your hashrate.</p>
+                        <strong className="text-white">1. {t('mine.step1Title')}</strong>
+                        <p>{t('mine.step1Desc')}</p>
                     </div>
                     <div>
-                        <strong className="text-white">2. Node Signing</strong>
-                        <p>Your B1T node creates and signs transactions via RPC for each sequence number attempt.</p>
+                        <strong className="text-white">2. {t('mine.step2Title')}</strong>
+                        <p>{t('mine.step2Desc')}</p>
                     </div>
                     <div>
-                        <strong className="text-white">3. Continuous Mining</strong>
-                        <p>Automatically reloads UTXOs and continues mining after each find! Enable "Stop on Find" to mine single RABB1Ts.</p>
+                        <strong className="text-white">3. {t('mine.step3Title')}</strong>
+                        <p>{t('mine.step3Desc')}</p>
                     </div>
                 </div>
             </motion.div>

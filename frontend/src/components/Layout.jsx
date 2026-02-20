@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wallet, Home, Send, Download, Menu, X, AlertTriangle, Pickaxe } from 'lucide-react';
+import { Wallet, Home, Send, Download, Menu, X, AlertTriangle, Pickaxe, PenTool } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useWalletStore from '../store/walletStore';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +17,8 @@ export default function Layout() {
     { name: t('nav.dashboard'), href: '/dashboard', icon: Wallet, requiresAuth: true },
     { name: t('nav.send'), href: '/send', icon: Send, requiresAuth: true },
     { name: t('nav.receive'), href: '/receive', icon: Download, requiresAuth: true },
-    { name: 'Rabb1ts Miner', href: '/mine', icon: Pickaxe, requiresAuth: true },
+    { name: t('nav.inscribe'), href: '/inscribe', icon: PenTool, requiresAuth: true },
+    { name: t('nav.mine'), href: '/mine', icon: Pickaxe, requiresAuth: true },
     // Added Addresses tab
     { name: t('nav.addresses'), href: '/addresses', icon: Wallet, requiresAuth: true },
     { name: t('nav.explorer'), href: '/explorer', icon: Wallet, requiresAuth: false },

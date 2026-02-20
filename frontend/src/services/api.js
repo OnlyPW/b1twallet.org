@@ -80,6 +80,26 @@ export const walletApi = {
   getTokens: (address) =>
     api.get(`/api/ordinals/address/${address}/tokens`),
 
+  // Ordinals Inscription
+  inscribeOrdinal: (data) =>
+    api.post('/api/ordinals/inscribe', data, { timeout: 300000 }),
+
+  estimateInscription: (dataSize) =>
+    api.post('/api/ordinals/estimate', { dataSize }),
+
+  getInscriptions: (address) =>
+    api.get(`/api/ordinals/address/${address}/inscriptions`),
+
+  getInscriptionContentUrl: (txid) =>
+    `${API_URL}/api/ordinals/content/${txid}`,
+
+  transferInscription: (data) =>
+    api.post('/api/ordinals/transfer', data, { timeout: 120000 }),
+
+  // UTXO Consolidation
+  consolidateUtxos: (data) =>
+    api.post('/api/wallet/consolidate', data, { timeout: 60000 }),
+
   // Rabb1ts Mining (with extended timeout for mining operations)
   getRabb1tsUtxos: (address) =>
     api.get(`/api/wallet/rabb1ts/utxo-details/${address}`),

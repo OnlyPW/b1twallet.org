@@ -76,6 +76,24 @@ export async function initSchema() {
       );
     `);
 
+    // Inscriptions (ordinals created through the wallet)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS inscriptions (
+        inscription_txid TEXT PRIMARY KEY,
+        owner_address TEXT NOT NULL,
+        to_address TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        data_size INTEGER NOT NULL,
+        content BYTEA,
+        total_transactions INTEGER DEFAULT 1,
+        created_at BIGINT,
+        utxo_txid TEXT,
+        utxo_vout INTEGER DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_inscriptions_owner ON inscriptions(owner_address);
+      CREATE INDEX IF NOT EXISTS idx_inscriptions_to ON inscriptions(to_address);
+    `);
+
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');

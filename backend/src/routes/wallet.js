@@ -834,4 +834,90 @@ router.get('/rabb1ts/utxo-details/:address', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/wallet/consolidate
+ * Merges all UTXOs of an address into a single UTXO.
+ */
+router.post('/consolidate', async (req, res) => {
+  try {
+    const { mnemonic, addressIndex = 0 } = req.body;
+
+    if (!mnemonic || !bip39.validateMnemonic(mnemonic)) {
+      return res.status(400).json({ success: false, error: 'Invalid mnemonic' });
+    }
+
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+    const root = bip32.fromSeed(seed, B1T_NETWORK);
+    const path = `m/44'/${B1T_COIN_TYPE}'/0'/0/${addressIndex}`;
+    const child = root.derivePath(path);
+    const keyPair = ECPair.fromPrivateKey(child.privateKey, { network: B1T_NETWORK });
+    const { address } = bitcoin.payments.p2pkh({ pubkey: child.publicKey, network: B1T_NETWORK });
+
+    const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
+    let utxos = [];
+    if (useIndexer) {
+      try { utxos = await dbWallet.getAddressUtxos(address); } catch {}
+    }
+    if (utxos.length === 0) {
+      try { utxos = await rpcClient.getAddressUtxos(address); } catch {}
+    }
+
+    if (utxos.length <= 1) {
+      return res.json({ success: true, message: 'Already consolidated', utxoCount: utxos.length });
+    }
+
+    const totalSat = utxos.reduce((sum, u) => sum + Number(u.satoshis || 0), 0);
+    const MIN_FEE = 2000000;
+    const estFee = Math.max(Math.ceil((utxos.length * 180 + 34 + 10) / 1000 * 5625000), MIN_FEE);
+
+    if (totalSat <= estFee) {
+      return res.status(400).json({ success: false, error: 'UTXOs too small to cover fee' });
+    }
+
+    const psbt = new bitcoin.Psbt({ network: B1T_NETWORK });
+
+    for (const utxo of utxos) {
+      let txHex;
+      try {
+        txHex = await rpcClient.call('getrawtransaction', [utxo.txid], 10000);
+      } catch {
+        return res.status(500).json({ success: false, error: `Cannot fetch raw tx ${utxo.txid}` });
+      }
+      const vout = utxo.outputIndex !== undefined ? utxo.outputIndex : (utxo.vout || 0);
+      psbt.addInput({
+        hash: utxo.txid,
+        index: vout,
+        nonWitnessUtxo: Buffer.from(txHex, 'hex'),
+      });
+    }
+
+    psbt.addOutput({
+      address,
+      value: totalSat - estFee,
+    });
+
+    for (let i = 0; i < utxos.length; i++) {
+      psbt.signInput(i, keyPair);
+    }
+    psbt.finalizeAllInputs();
+
+    const rawHex = psbt.extractTransaction().toHex();
+    const txid = await rpcClient.sendRawTransaction(rawHex);
+
+    console.log(`Consolidated ${utxos.length} UTXOs for ${address} → ${txid} (${(totalSat - estFee) / 100000000} B1T)`);
+
+    res.json({
+      success: true,
+      txid,
+      inputCount: utxos.length,
+      totalB1T: totalSat / 100000000,
+      feeB1T: estFee / 100000000,
+      consolidatedB1T: (totalSat - estFee) / 100000000,
+    });
+  } catch (error) {
+    console.error('Consolidate error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

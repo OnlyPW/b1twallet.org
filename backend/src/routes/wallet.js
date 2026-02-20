@@ -419,7 +419,7 @@ router.get('/transactions/:address', async (req, res) => {
 // Send Transaction
 router.post('/send', async (req, res) => {
   try {
-    const { mnemonic, fromAddress, toAddress, amount, fee, addressIndex = 0, useAll = false, fromAddresses = [], addressIndices = [], changeIndex = 0 } = req.body;
+    const { wif, wifs, fromAddress, toAddress, amount, fee, addressIndex = 0, useAll = false, fromAddresses = [], changeAddress, changeIndex = 0 } = req.body;
 
     // Schneller Healthcheck: ist der RPC-Node erreichbar? (5s Timeout)
     try {
@@ -428,9 +428,21 @@ router.post('/send', async (req, res) => {
       return res.status(503).json({ success: false, error: 'B1T Core Node nicht erreichbar' });
     }
 
-    // Validate inputs
-    if (!bip39.validateMnemonic(mnemonic)) {
-      return res.status(400).json({ success: false, error: 'Ungültiger Seed' });
+    // Validate inputs: require wif (single) or wifs (multi)
+    if (useAll) {
+      if (!Array.isArray(wifs) || wifs.length === 0 || !Array.isArray(fromAddresses) || fromAddresses.length === 0) {
+        return res.status(400).json({ success: false, error: 'Multi-mode requires wifs and fromAddresses' });
+      }
+      if (wifs.length !== fromAddresses.length) {
+        return res.status(400).json({ success: false, error: 'wifs length must match fromAddresses length' });
+      }
+    } else {
+      if (!wif || typeof wif !== 'string') {
+        return res.status(400).json({ success: false, error: 'wif is required for single-address mode' });
+      }
+      if (!fromAddress) {
+        return res.status(400).json({ success: false, error: 'fromAddress is required' });
+      }
     }
 
     const toValidation = await rpcClient.call('validateaddress', [toAddress], 7000);
@@ -458,22 +470,15 @@ router.post('/send', async (req, res) => {
     const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
     let utxos = [];
     if (useAll) {
-      if (!Array.isArray(fromAddresses) || fromAddresses.length === 0) {
-        return res.status(400).json({ success: false, error: 'Keine Quelladressen angegeben' });
-      }
-      if (!Array.isArray(addressIndices) || addressIndices.length !== fromAddresses.length) {
-        return res.status(400).json({ success: false, error: 'Indexliste fehlt oder fehlerhaft' });
-      }
       for (let i = 0; i < fromAddresses.length; i++) {
         const addr = fromAddresses[i];
-        const idx = addressIndices[i];
         let list = useIndexer ? await dbWallet.getAddressUtxos(addr) : await rpcClient.getAddressUtxos(addr);
         // Fallback auf RPC/Explorer, falls Indexer (oder primärer Pfad) keine UTXOs liefert
         if (!Array.isArray(list) || list.length === 0) {
           try { list = await rpcClient.getAddressUtxos(addr); } catch { }
         }
         for (const u of list) {
-          utxos.push({ ...u, ownerAddress: addr, ownerIndex: idx });
+          utxos.push({ ...u, ownerAddress: addr, ownerIndex: i });
         }
       }
     } else {
@@ -543,20 +548,18 @@ router.post('/send', async (req, res) => {
     // Add main output
     psbt.addOutput({ address: toAddress, value: amountSat });
 
-    // Add change output if needed (to first source address or provided changeIndex)
+    // Add change output if needed (changeAddress or first source address in multi-mode)
     const change = totalInput - amountSat - feeSat;
     if (change > 546) {
-      const changeAddr = useAll ? (fromAddresses[0]) : fromAddress;
+      const changeAddr = useAll ? (changeAddress || fromAddresses[0]) : fromAddress;
       psbt.addOutput({ address: changeAddr, value: change });
     }
 
-    // Sign inputs (per input ownerIndex)
-    const seed = bip39.mnemonicToSeedSync(mnemonic);
-    const root = bip32.fromSeed(seed, B1T_NETWORK);
+    // Sign inputs using WIF directly (per input ownerIndex in multi-mode)
     selectedUtxos.forEach((utxo, i) => {
-      const path = `m/44'/${B1T_COIN_TYPE}'/0'/0/${utxo.ownerIndex}`;
-      const keyPair = root.derivePath(path);
-      psbt.signInput(i, ECPair.fromPrivateKey(keyPair.privateKey, { network: B1T_NETWORK }));
+      const wifToUse = useAll ? wifs[utxo.ownerIndex] : wif;
+      const keyPair = ECPair.fromWIF(wifToUse, B1T_NETWORK);
+      psbt.signInput(i, keyPair);
     });
 
     psbt.finalizeAllInputs();
@@ -840,18 +843,16 @@ router.get('/rabb1ts/utxo-details/:address', async (req, res) => {
  */
 router.post('/consolidate', async (req, res) => {
   try {
-    const { mnemonic, addressIndex = 0 } = req.body;
+    const { wif, address } = req.body;
 
-    if (!mnemonic || !bip39.validateMnemonic(mnemonic)) {
-      return res.status(400).json({ success: false, error: 'Invalid mnemonic' });
+    if (!wif || typeof wif !== 'string') {
+      return res.status(400).json({ success: false, error: 'wif is required' });
+    }
+    if (!address || typeof address !== 'string') {
+      return res.status(400).json({ success: false, error: 'address is required' });
     }
 
-    const seed = bip39.mnemonicToSeedSync(mnemonic);
-    const root = bip32.fromSeed(seed, B1T_NETWORK);
-    const path = `m/44'/${B1T_COIN_TYPE}'/0'/0/${addressIndex}`;
-    const child = root.derivePath(path);
-    const keyPair = ECPair.fromPrivateKey(child.privateKey, { network: B1T_NETWORK });
-    const { address } = bitcoin.payments.p2pkh({ pubkey: child.publicKey, network: B1T_NETWORK });
+    const keyPair = ECPair.fromWIF(wif, B1T_NETWORK);
 
     const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
     let utxos = [];

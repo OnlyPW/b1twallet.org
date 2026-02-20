@@ -85,12 +85,8 @@ export default function Dashboard() {
       }
 
       try {
-        let mnemonic;
-        try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
-        if (mnemonic) {
-          const xp = await walletApi.deriveXpub(mnemonic);
-          if (xp?.success) setXpub(xp.xpub);
-        }
+        const xp = useWalletStore.getState().getXpub();
+        if (xp) setXpub(xp);
       } catch {}
 
       const addrs = (addresses || []).map(a => a.address);
@@ -206,18 +202,17 @@ export default function Dashboard() {
   };
 
   const handleConsolidate = async () => {
-    let mnemonic = null;
-    try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
-    if (!mnemonic) {
+    const state = useWalletStore.getState();
+    const addrIdx = state.currentAddressIndex || 0;
+    const wif = state.getWIF(addrIdx);
+    const addr = state.getCurrentAddress()?.address;
+    if (!wif || !addr) {
       toast.error(t('inscribe.walletLocked'));
       return;
     }
     setConsolidating(true);
     try {
-      const res = await walletApi.consolidateUtxos({
-        mnemonic,
-        addressIndex: useWalletStore.getState().currentAddressIndex || 0,
-      });
+      const res = await walletApi.consolidateUtxos({ wif, address: addr });
       if (res.success && res.txid) {
         toast.success(t('consolidate.success', { count: res.inputCount, amount: res.consolidatedB1T?.toFixed(2) }));
         setTimeout(() => loadWalletData(), 3000);

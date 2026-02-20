@@ -49,18 +49,20 @@ export default function Ordinals() {
   const handleTransfer = async () => {
     if (!selected || !transferTo.trim()) return;
 
-    let mnemonic = null;
-    try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
-    if (!mnemonic) {
+    const { getWIF } = useWalletStore.getState();
+    const wif = getWIF(currentAddressIndex || 0);
+    if (!wif) {
       toast.error(t('inscribe.walletLocked'));
       return;
     }
 
+    const currentAddr = addresses[currentAddressIndex]?.address;
+
     setTransferring(true);
     try {
       const res = await walletApi.transferInscription({
-        mnemonic,
-        addressIndex: currentAddressIndex || 0,
+        wif,
+        senderAddress: currentAddr,
         inscriptionTxid: selected.inscription_txid,
         toAddress: transferTo.trim(),
       });

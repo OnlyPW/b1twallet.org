@@ -1,12 +1,17 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Wallet, Download, Shield, Zap, Github } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Wallet, Download, Shield, Zap, Github, Lock, Loader } from 'lucide-react';
+import toast from 'react-hot-toast';
 import useWalletStore from '../store/walletStore';
 import { useTranslation } from 'react-i18next';
 
 export default function Home() {
-  const { isUnlocked } = useWalletStore();
+  const { isUnlocked, hasVault, unlockVault } = useWalletStore();
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [password, setPassword] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
 
   const features = [
     {
@@ -66,13 +71,50 @@ export default function Home() {
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
+        <div className="flex flex-col gap-4 justify-center items-center pt-8 max-w-md mx-auto w-full">
           {isUnlocked ? (
             <Link to="/dashboard" className="btn-primary text-lg px-8 py-4">
               {t('home.cta.dashboard')}
             </Link>
+          ) : hasVault ? (
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!password) return;
+              setUnlocking(true);
+              try {
+                await unlockVault(password);
+                toast.success(t('home.unlocked'));
+                navigate('/dashboard');
+              } catch {
+                toast.error(t('home.wrongPassword'));
+              } finally {
+                setUnlocking(false);
+              }
+            }} className="w-full space-y-3">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={t('home.passwordPlaceholder')}
+                    className="input pl-10 text-base"
+                    autoFocus
+                  />
+                </div>
+                <button type="submit" disabled={unlocking || !password} className="btn-primary px-6 disabled:opacity-50">
+                  {unlocking ? <Loader size={20} className="animate-spin" /> : t('home.unlock')}
+                </button>
+              </div>
+              <div className="flex gap-3 justify-center text-sm">
+                <Link to="/create" className="text-gray-400 hover:text-b1t-orange transition">{t('home.cta.create')}</Link>
+                <span className="text-gray-600">|</span>
+                <Link to="/import" className="text-gray-400 hover:text-b1t-orange transition">{t('home.cta.import')}</Link>
+              </div>
+            </form>
           ) : (
-            <>
+            <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/create" className="btn-primary text-lg px-8 py-4">
                 <Wallet className="inline mr-2" size={20} />
                 {t('home.cta.create')}
@@ -81,7 +123,7 @@ export default function Home() {
                 <Download className="inline mr-2" size={20} />
                 {t('home.cta.import')}
               </Link>
-            </>
+            </div>
           )}
         </div>
       </motion.div>

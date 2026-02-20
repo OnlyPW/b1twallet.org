@@ -76,23 +76,14 @@ export default function Addresses() {
   };
 
   const deriveMore = async (n = 5) => {
-    let mnemonic = null;
-    try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
-    if (!mnemonic) {
-      toast.error('Wallet ist gesperrt. Bitte neu importieren.');
-      navigate('/');
-      return;
-    }
     try {
       setAddrLoading(true);
-      const startIndex = addresses.length;
-      const res = await walletApi.deriveAddresses(mnemonic, n, 0, startIndex);
-      const newAddrs = res.addresses || [];
+      const newAddrs = useWalletStore.getState().deriveMoreAddresses(n);
       if (newAddrs.length > 0) {
-        setAddresses([...(addresses || []), ...newAddrs]);
         toast.success(`${newAddrs.length} neue Adressen abgeleitet`);
       } else {
-        toast.error('Keine neuen Adressen abgeleitet');
+        toast.error('Wallet ist gesperrt.');
+        navigate('/');
       }
     } catch (e) {
       toast.error(`Fehler beim Ableiten: ${e.message}`);

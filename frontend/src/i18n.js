@@ -80,7 +80,11 @@ const resources = {
           title: 'Why B1T Wallet?',
           desc: 'B1T Wallet is a fully integrated solution for the B1T blockchain with native Ordinals support. Manage your B1T coins and Ordinals in a modern, user-friendly interface — without compromising on security or self-sovereignty.',
           phase: '🔥 Phase 1 is live! Ordinals features coming in Phase 2–4.'
-        }
+        },
+        unlock: 'Unlock',
+        unlocked: 'Wallet unlocked!',
+        wrongPassword: 'Wrong password. Please try again.',
+        passwordPlaceholder: 'Enter wallet password',
       },
       beta: { title: 'Beta Notice', message: 'This wallet is in beta. Use with caution.' },
       explorer: {
@@ -385,7 +389,11 @@ const resources = {
           title: 'Warum B1T Wallet?',
           desc: 'B1T Wallet ist die erste vollständig integrierte Lösung für die B1T-Blockchain mit nativem Ordinals-Support. Verwalte deine B1T-Coins und Ordinals in einer modernen, benutzerfreundlichen Oberfläche — ohne Kompromisse bei Sicherheit und Selbstbestimmung.',
           phase: '🔥 Phase 1 ist live! Ordinals-Features folgen in Phase 2–4.'
-        }
+        },
+        unlock: 'Entsperren',
+        unlocked: 'Wallet entsperrt!',
+        wrongPassword: 'Falsches Passwort. Bitte erneut versuchen.',
+        passwordPlaceholder: 'Wallet-Passwort eingeben',
       },
       beta: { title: 'Beta-Hinweis', message: 'Diese Wallet befindet sich in der Beta-Phase. Bitte mit Vorsicht nutzen.' },
       explorer: {

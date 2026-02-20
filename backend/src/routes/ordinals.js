@@ -1,17 +1,11 @@
 import express from 'express';
-import * as bip39 from 'bip39';
-import { BIP32Factory } from 'bip32';
-import * as ecc from 'tiny-secp256k1';
 import * as bitcoin from 'bitcoinjs-lib';
-import { ECPairFactory } from 'ecpair';
 import rpcClient from '../services/rpcClient.js';
 import dbWallet from '../services/dbWallet.js';
 import { createInscription, estimateInscriptionCost } from '../services/inscriptionService.js';
 import { getPool } from '../services/db.js';
 
 const router = express.Router();
-const bip32 = BIP32Factory(ecc);
-const ECPair = ECPairFactory(ecc);
 
 const B1T_NETWORK = {
   messagePrefix: '\x18Bit Signed Message:\n',
@@ -21,25 +15,6 @@ const B1T_NETWORK = {
   scriptHash: 0x16,
   wif: 0x9E,
 };
-const B1T_COIN_TYPE = 3141;
-
-function deriveWIF(mnemonic, addressIndex) {
-  const seed = bip39.mnemonicToSeedSync(mnemonic);
-  const root = bip32.fromSeed(seed, B1T_NETWORK);
-  const path = `m/44'/${B1T_COIN_TYPE}'/0'/0/${addressIndex}`;
-  const child = root.derivePath(path);
-  const keyPair = ECPair.fromPrivateKey(child.privateKey, { network: B1T_NETWORK });
-  return keyPair.toWIF();
-}
-
-function deriveAddress(mnemonic, addressIndex) {
-  const seed = bip39.mnemonicToSeedSync(mnemonic);
-  const root = bip32.fromSeed(seed, B1T_NETWORK);
-  const path = `m/44'/${B1T_COIN_TYPE}'/0'/0/${addressIndex}`;
-  const child = root.derivePath(path);
-  const { address } = bitcoin.payments.p2pkh({ pubkey: child.publicKey, network: B1T_NETWORK });
-  return address;
-}
 
 function getScriptPubKey(address) {
   return bitcoin.address.toOutputScript(address, B1T_NETWORK).toString('hex');
@@ -51,14 +26,10 @@ function getScriptPubKey(address) {
  */
 router.post('/inscribe', async (req, res) => {
   try {
-    const { mnemonic, addressIndex = 0, toAddress, contentType, hexData, mintAddress, mintPrice } = req.body;
+    const { wif, senderAddress, toAddress, contentType, hexData, mintAddress, mintPrice } = req.body;
 
-    if (!mnemonic || !contentType || !hexData) {
-      return res.status(400).json({ success: false, error: 'mnemonic, contentType and hexData are required' });
-    }
-
-    if (!bip39.validateMnemonic(mnemonic)) {
-      return res.status(400).json({ success: false, error: 'Invalid mnemonic' });
+    if (!wif || !senderAddress || !contentType || !hexData) {
+      return res.status(400).json({ success: false, error: 'wif, senderAddress, contentType and hexData are required' });
     }
 
     if (!/^[a-fA-F0-9]*$/.test(hexData)) {
@@ -74,9 +45,7 @@ router.post('/inscribe', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Data too large (max 400 KB)' });
     }
 
-    const senderAddress = deriveAddress(mnemonic, addressIndex);
     const destination = toAddress || senderAddress;
-    const wif = deriveWIF(mnemonic, addressIndex);
     const scriptHex = getScriptPubKey(senderAddress);
 
     // Load UTXOs from DB indexer (primary) or RPC (fallback)
@@ -289,18 +258,11 @@ router.get('/address/:address/tokens', async (req, res) => {
  */
 router.post('/transfer', async (req, res) => {
   try {
-    const { mnemonic, addressIndex = 0, inscriptionTxid, toAddress } = req.body;
+    const { wif, senderAddress, inscriptionTxid, toAddress } = req.body;
 
-    if (!mnemonic || !inscriptionTxid || !toAddress) {
-      return res.status(400).json({ success: false, error: 'mnemonic, inscriptionTxid and toAddress are required' });
+    if (!wif || !senderAddress || !inscriptionTxid || !toAddress) {
+      return res.status(400).json({ success: false, error: 'wif, senderAddress, inscriptionTxid and toAddress are required' });
     }
-
-    if (!bip39.validateMnemonic(mnemonic)) {
-      return res.status(400).json({ success: false, error: 'Invalid mnemonic' });
-    }
-
-    const senderAddress = deriveAddress(mnemonic, addressIndex);
-    const wif = deriveWIF(mnemonic, addressIndex);
 
     // Find the inscription UTXO (output 0 of the inscription tx should hold the ordinal)
     const { rows: inscRows } = await getPool().query(

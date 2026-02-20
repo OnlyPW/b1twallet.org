@@ -163,18 +163,18 @@ export default function Inscribe() {
   };
 
   const handleInscribe = async () => {
-    let mnemonic = null;
-    try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
-    if (!mnemonic) {
-      toast.error(t('inscribe.walletLocked'));
-      navigate('/');
-      return;
-    }
-
+    const { getWIF } = useWalletStore.getState();
     const addrList = addresses || [];
     const selectedAddr = addrList[fromIndex];
     if (!selectedAddr) {
       toast.error(t('inscribe.noAddress'));
+      return;
+    }
+
+    const wif = getWIF(selectedAddr.index ?? fromIndex);
+    if (!wif) {
+      toast.error(t('inscribe.walletLocked'));
+      navigate('/');
       return;
     }
 
@@ -212,8 +212,8 @@ export default function Inscribe() {
       setResult(null);
 
       const response = await walletApi.inscribeOrdinal({
-        mnemonic,
-        addressIndex: selectedAddr.index ?? fromIndex,
+        wif,
+        senderAddress: selectedAddr.address,
         toAddress: toAddress || selectedAddr.address,
         contentType,
         hexData,

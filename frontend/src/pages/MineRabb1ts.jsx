@@ -122,19 +122,8 @@ export default function MineRabb1ts() {
 
     // Get WIF from mnemonic
     const getWif = useCallback(() => {
-        try {
-            const mnemonic = sessionStorage.getItem('b1t_mnemonic') || localStorage.getItem('b1t_mnemonic');
-            if (!mnemonic) throw new Error('Wallet locked');
-
-            const seed = bip39.mnemonicToSeedSync(mnemonic);
-            const root = bip32.fromSeed(seed, B1T_NETWORK);
-            const path = `m/44'/3141'/0'/0/${currentAddressIndex}`;
-            const child = root.derivePath(path);
-            return child.toWIF();
-        } catch (e) {
-            console.error(e);
-            return null;
-        }
+        const wif = useWalletStore.getState().getWIF(currentAddressIndex);
+        return wif || null;
     }, [currentAddressIndex]);
 
     const addLog = (msg, type = 'info') => {

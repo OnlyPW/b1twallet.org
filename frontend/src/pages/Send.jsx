@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function Send() {
   const navigate = useNavigate();
-  const { isUnlocked, getCurrentAddress, addresses, currentAddressIndex, setCurrentAddress } = useWalletStore();
+  const { isUnlocked, getCurrentAddress, addresses, currentAddressIndex, setCurrentAddress, getWIF } = useWalletStore();
   const { t } = useTranslation();
   
   const [toAddress, setToAddress] = useState('');
@@ -100,12 +100,22 @@ export default function Send() {
       return;
     }
 
-    let mnemonic = null;
-    try { mnemonic = localStorage.getItem('b1t_mnemonic'); } catch {}
-    if (!mnemonic) {
-      toast.error(t('send.toast.locked'));
-      navigate('/');
-      return;
+    let wif = null;
+    let wifs = [];
+    if (fromIndex === -1) {
+      wifs = (addrList || []).map(a => getWIF(a.index)).filter(Boolean);
+      if (wifs.length === 0 || wifs.length !== (addrList || []).length) {
+        toast.error(t('send.toast.locked'));
+        navigate('/');
+        return;
+      }
+    } else {
+      wif = getWIF(selectedAddr.index ?? fromIndex);
+      if (!wif) {
+        toast.error(t('send.toast.locked'));
+        navigate('/');
+        return;
+      }
     }
 
     try {
@@ -126,25 +136,22 @@ export default function Send() {
       if (fromIndex === -1) {
         // Sende aus allen Adressen (Multi-Input)
         const fromAddresses = (addresses || []).map(a => a.address);
-        const addressIndices = (addresses || []).map(a => a.index);
         response = await walletApi.sendTransaction({
-          mnemonic,
+          wifs,
           useAll: true,
           fromAddresses,
-          addressIndices,
           toAddress,
           amount: amountNum,
           fee,
-          changeIndex: addressIndices[0] ?? 0,
+          changeIndex: (addresses || [])[0]?.index ?? 0,
         });
       } else {
         response = await walletApi.sendTransaction({
-          mnemonic,
+          wif,
           fromAddress: selectedAddr.address,
           toAddress,
           amount: amountNum,
           fee,
-          addressIndex: selectedAddr.index ?? fromIndex,
         });
       }
 

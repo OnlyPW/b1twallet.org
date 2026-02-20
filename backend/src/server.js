@@ -31,13 +31,18 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate Limiting
+// Rate Limiting - Rabb1ts Mining Routen ohne Limit
+const rabb1tsPaths = [
+  '/wallet/rabb1ts/',
+  '/wallet/broadcast',
+];
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // Limit each IP to 10000 requests per windowMs
+  windowMs: 60 * 60 * 1000,
+  max: 500000,
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false }, // Disable trust proxy warning
+  validate: { trustProxy: false },
+  skip: (req) => rabb1tsPaths.some(p => req.path.startsWith(p) || req.path === p.replace('/', '')),
 });
 app.use('/api/', limiter);
 

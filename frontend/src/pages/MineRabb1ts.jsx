@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Pickaxe, Play, Pause, Zap, Database, Terminal, AlertCircle, RefreshCw, Cpu } from 'lucide-react';
+import { Pickaxe, Play, Pause, Zap, Database, Terminal, AlertCircle, RefreshCw, Cpu, Info } from 'lucide-react';
 import useWalletStore from '../store/walletStore';
 import { walletApi, remoteLog } from '../services/api';
 import { toast } from 'react-hot-toast';
@@ -368,6 +368,19 @@ export default function MineRabb1ts() {
                 </div>
                 <h1 className="text-4xl font-bold glow-text">🐇 {t('mine.title')}</h1>
                 <p className="text-gray-400">{t('mine.subtitle')}</p>
+            </motion.div>
+
+            {/* Lite Notice Banner */}
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3"
+            >
+                <Info size={24} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div>
+                    <h3 className="text-yellow-500 font-semibold mb-1">{t('mine.liteNotice')}</h3>
+                    <p className="text-sm text-gray-400">{t('mine.liteNoticeDesc')}</p>
+                </div>
             </motion.div>
 
             <div className="grid lg:grid-cols-3 gap-6">

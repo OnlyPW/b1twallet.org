@@ -5,7 +5,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 const resources = {
   en: {
     translation: {
-      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Send', receive: 'Receive', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Addresses', inscribe: 'Inscribe', mine: 'Rabb1ts Miner' },
+      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Send', receive: 'Receive', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Addresses', inscribe: 'Inscribe', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Lock Wallet', refresh: 'Refresh', copy: 'Copy', dismiss: 'Dismiss' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
       dashboard: { title: 'Dashboard', welcome: 'Welcome back!' },
@@ -230,8 +230,10 @@ const resources = {
         feeInfoMiner: 'Minimum miner fee: 0.02 B1T per transaction to ensure block inclusion.'
       },
       mine: {
-        title: 'Rabb1ts Miner',
+        title: 'Easy Rabb1t Miner (Lite)',
         subtitle: 'Mine RABB1TS tokens by finding transaction IDs starting with zeros',
+        liteNotice: 'Web-Version with limited performance',
+        liteNoticeDesc: 'This browser-based miner uses RPC calls and is limited by network latency. For maximum hashrate, a native desktop miner (coming soon) will be much faster.',
         walletLocked: 'Wallet Locked',
         walletLockedDesc: 'Please unlock your wallet to access the Rabb1ts Miner.',
         config: 'Mining Config',
@@ -314,7 +316,7 @@ const resources = {
   },
   de: {
     translation: {
-      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Senden', receive: 'Empfangen', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Adressen', inscribe: 'Inscribe', mine: 'Rabb1ts Miner' },
+      nav: { home: 'Home', dashboard: 'Dashboard', send: 'Senden', receive: 'Empfangen', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Adressen', inscribe: 'Inscribe', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Wallet sperren', refresh: 'Aktualisieren', copy: 'Kopieren', dismiss: 'Ausblenden' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
       dashboard: { title: 'Dashboard', welcome: 'Willkommen zurück!' },
@@ -539,8 +541,10 @@ const resources = {
         feeInfoMiner: 'Minimale Miner-Gebühr: 0,02 B1T pro Transaktion, damit Blöcke diese aufnehmen.'
       },
       mine: {
-        title: 'Rabb1ts Miner',
+        title: 'Easy Rabb1t Miner (Lite)',
         subtitle: 'Mine RABB1TS Token, indem du Transaktions-IDs findest die mit Nullen beginnen',
+        liteNotice: 'Web-Version mit begrenzter Leistung',
+        liteNoticeDesc: 'Dieser browser-basierte Miner nutzt RPC-Calls und ist durch die Netzwerklatenz limitiert. Für maximale Hashrate wird ein nativer Desktop-Miner (bald verfügbar) deutlich schneller sein.',
         walletLocked: 'Wallet gesperrt',
         walletLockedDesc: 'Bitte entsperre deine Wallet, um den Rabb1ts Miner zu nutzen.',
         config: 'Mining Konfiguration',
@@ -622,7 +626,7 @@ const resources = {
   },
   fr: { 
     translation: {
-      nav: { home: 'Accueil', dashboard: 'Tableau de bord', send: 'Envoyer', receive: 'Recevoir', explorer: 'Explorateur', mempool: 'Mempool', addresses: 'Adresses', inscribe: 'Inscrire', mine: 'Rabb1ts Miner' },
+      nav: { home: 'Accueil', dashboard: 'Tableau de bord', send: 'Envoyer', receive: 'Recevoir', explorer: 'Explorateur', mempool: 'Mempool', addresses: 'Adresses', inscribe: 'Inscrire', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Verrouiller le portefeuille', refresh: 'Actualiser' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
       dashboard: { title: 'Tableau de bord', welcome: 'Bon retour !' },
@@ -651,13 +655,13 @@ const resources = {
       },
       tokens: { title: 'Tokens', none: 'Aucun token trouvé', id: 'ID', standard: 'Standard', indexerUnavailable: 'Indexeur Ordinals indisponible', indexerUnavailableDesc: 'Les données des tokens ne peuvent être affichées que lorsque l\'indexeur Ordinals est en cours d\'exécution et synchronisé. Vous pouvez déjà inscrire des Ordinals et des Tokens.', loadError: 'Erreur lors du chargement des données de token. Veuillez réessayer plus tard.', inscribeNow: 'Inscrire maintenant' },
       inscribe: { title: 'Inscrire', subtitle: 'Inscrire des Ordinals & Tokens sur la blockchain B1T', tabImage: 'Image / Ordinal', tabToken: 'Token / Texte', dropzone: 'Glissez une image ici ou cliquez', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Aperçu', original: 'Original', compressed: 'Compressé (WebP)', quality: 'Qualité', qualityLow: 'Petit / Bas', qualityHigh: 'Grand / Haut', formMode: 'Formulaire', rawMode: 'Manuel (JSON)', operation: 'Opération', opDeploy: 'Déployer', opDeployDesc: 'Créer un nouveau token', opMint: 'Mint', opMintDesc: 'Frapper des tokens', opTransfer: 'Transfert', opTransferDesc: 'Transférer des tokens', ticker: 'Ticker du token', settings: 'Paramètres', fromAddress: 'Adresse d\'envoi', toAddress: 'Adresse de destination (optionnel)', estimatedCost: 'Coût estimé', success: 'Inscription réussie !', walletLocked: 'Portefeuille verrouillé' },
-      mine: { title: 'Rabb1ts Miner', subtitle: 'Minez des RABB1TS en trouvant des IDs de transaction commençant par des zéros', walletLocked: 'Portefeuille verrouillé', walletLockedDesc: 'Veuillez déverrouiller votre portefeuille pour accéder au Rabb1ts Miner.', config: 'Configuration du minage', selectUtxo: 'Sélectionner un UTXO', refresh: 'Actualiser', startMining: 'Démarrer le minage ({{count}} cœurs)', stopMiner: 'Arrêter le mineur', statusMining: 'MINAGE', statusIdle: 'PRÊT' },
+      mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Minez des RABB1TS en trouvant des IDs de transaction commençant par des zéros', liteNotice: 'Version web avec performances limitées', liteNoticeDesc: 'Ce mineur basé sur navigateur utilise des appels RPC et est limité par la latence réseau. Pour un hashrate maximum, un mineur desktop natif (bientôt disponible) sera beaucoup plus rapide.', walletLocked: 'Portefeuille verrouillé', walletLockedDesc: 'Veuillez déverrouiller votre portefeuille pour accéder au Rabb1ts Miner.', config: 'Configuration du minage', selectUtxo: 'Sélectionner un UTXO', refresh: 'Actualiser', startMining: 'Démarrer le minage ({{count}} cœurs)', stopMiner: 'Arrêter le mineur', statusMining: 'MINAGE', statusIdle: 'PRÊT' },
       mempool: { title: 'Mempool', status: 'Statut', refresh: 'Actualiser', loading: 'Chargement...', size: 'Taille', bytes: 'Octets', usage: 'Utilisation', minFee: 'Frais min', txids: 'TxIDs', none: 'Aucune transaction dans le mempool.', raw: 'Vue RAW', loadingTx: 'Chargement de la transaction...', selectPrompt: 'Sélectionnez une TXID à gauche pour voir les détails.' }
     }
   },
   ru: {
     translation: {
-      nav: { home: 'Домой', dashboard: 'Панель', send: 'Отправить', receive: 'Получить', explorer: 'Обозреватель', mempool: 'Мемпул', addresses: 'Адреса', inscribe: 'Инскрипция', mine: 'Rabb1ts Miner' },
+      nav: { home: 'Домой', dashboard: 'Панель', send: 'Отправить', receive: 'Получить', explorer: 'Обозреватель', mempool: 'Мемпул', addresses: 'Адреса', inscribe: 'Инскрипция', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Заблокировать кошелёк', refresh: 'Обновить' },
       footer: { docs: 'Документация', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Некастодиально и с открытым исходным кодом.' },
       dashboard: { title: 'Панель', welcome: 'С возвращением!' },
@@ -679,13 +683,13 @@ const resources = {
       },
       tokens: { title: 'Токены', none: 'Токены не найдены', id: 'ID', standard: 'Стандарт', indexerUnavailable: 'Индексатор Ordinals недоступен', indexerUnavailableDesc: 'Данные о токенах будут доступны после запуска и синхронизации индексатора Ordinals. Вы уже можете создавать инскрипции.', loadError: 'Ошибка загрузки данных о токенах. Попробуйте позже.', inscribeNow: 'Создать инскрипцию' },
       inscribe: { title: 'Инскрипция', subtitle: 'Создание Ordinals & Tokens на блокчейне B1T', tabImage: 'Изображение / Ordinal', tabToken: 'Токен / Текст', dropzone: 'Перетащите изображение сюда или нажмите', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Предпросмотр', original: 'Оригинал', compressed: 'Сжато (WebP)', quality: 'Качество', qualityLow: 'Малый / Низкий', qualityHigh: 'Большой / Высокий', formMode: 'Форма', rawMode: 'Вручную (JSON)', operation: 'Операция', opDeploy: 'Создать', opDeployDesc: 'Создать новый токен', opMint: 'Mint', opMintDesc: 'Чеканить токены', opTransfer: 'Перевод', opTransferDesc: 'Перевести токены', ticker: 'Тикер токена', settings: 'Настройки', fromAddress: 'Адрес отправителя', toAddress: 'Адрес получателя (необязательно)', estimatedCost: 'Примерная стоимость', success: 'Инскрипция успешна!', walletLocked: 'Кошелёк заблокирован' },
-      mine: { title: 'Rabb1ts Miner', subtitle: 'Майните RABB1TS, находя ID транзакций, начинающихся с нулей', walletLocked: 'Кошелёк заблокирован', walletLockedDesc: 'Пожалуйста, разблокируйте кошелёк для доступа к Rabb1ts Miner.', config: 'Настройки майнинга', selectUtxo: 'Выбрать UTXO', refresh: 'Обновить', startMining: 'Начать майнинг ({{count}} ядер)', stopMiner: 'Остановить майнер', statusMining: 'МАЙНИНГ', statusIdle: 'ОЖИДАНИЕ' },
+      mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Майните RABB1TS, находя ID транзакций, начинающихся с нулей', liteNotice: 'Веб-версия с ограниченной производительностью', liteNoticeDesc: 'Этот браузерный майнер использует RPC-вызовы и ограничен сетевой задержкой. Для максимального хешрейта нативный десктопный майнер (скоро) будет намного быстрее.', walletLocked: 'Кошелёк заблокирован', walletLockedDesc: 'Пожалуйста, разблокируйте кошелёк для доступа к Rabb1ts Miner.', config: 'Настройки майнинга', selectUtxo: 'Выбрать UTXO', refresh: 'Обновить', startMining: 'Начать майнинг ({{count}} ядер)', stopMiner: 'Остановить майнер', statusMining: 'МАЙНИНГ', statusIdle: 'ОЖИДАНИЕ' },
       mempool: { title: 'Мемпул', status: 'Статус', refresh: 'Обновить', loading: 'Загрузка...', size: 'Размер', bytes: 'Байт', usage: 'Использование', minFee: 'Мин комиссия', txids: 'TxIDs', none: 'Нет транзакций в мемпуле.', raw: 'RAW просмотр', loadingTx: 'Загрузка транзакции...', selectPrompt: 'Выберите TXID слева, чтобы увидеть детали.' }
     }
   },
   zh: {
     translation: {
-      nav: { home: '首页', dashboard: '仪表盘', send: '发送', receive: '接收', explorer: '区块浏览器', mempool: '内存池', addresses: '地址', inscribe: '铭文', mine: 'Rabb1ts 挖矿' },
+      nav: { home: '首页', dashboard: '仪表盘', send: '发送', receive: '接收', explorer: '区块浏览器', mempool: '内存池', addresses: '地址', inscribe: '铭文', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: '锁定钱包', refresh: '刷新' },
       footer: { docs: '文档', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. 去托管与开源。' },
       dashboard: { title: '仪表盘', welcome: '欢迎回来！' },
@@ -707,13 +711,13 @@ const resources = {
       },
       tokens: { title: '代币', none: '未找到代币', id: 'ID', standard: '标准', indexerUnavailable: 'Ordinals 索引器不可用', indexerUnavailableDesc: '只有在 Ordinals 索引器运行并同步后才能显示代币数据。您现在已可以铭刻 Ordinals 和代币。', loadError: '加载代币数据时出错。请稍后重试。', inscribeNow: '立即铭刻' },
       inscribe: { title: '铭文', subtitle: '在 B1T 区块链上铭刻 Ordinals 和代币', tabImage: '图片 / Ordinal', tabToken: '代币 / 文本', dropzone: '拖拽图片到此或点击', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: '预览', original: '原始', compressed: '压缩 (WebP)', quality: '质量', formMode: '表单', rawMode: '手动 (JSON)', operation: '操作', opDeploy: '部署', opDeployDesc: '创建新代币', opMint: '铸造', opMintDesc: '铸造代币', opTransfer: '转移', opTransferDesc: '转移代币', ticker: '代币符号', settings: '设置', fromAddress: '发送地址', toAddress: '目标地址（可选）', estimatedCost: '预估费用', success: '铭刻成功！', walletLocked: '钱包已锁定' },
-      mine: { title: 'Rabb1ts 挖矿', subtitle: '通过寻找以零开头的交易ID来挖矿RABB1TS代币', walletLocked: '钱包已锁定', walletLockedDesc: '请解锁您的钱包以使用 Rabb1ts 矿工。', config: '挖矿配置', selectUtxo: '选择 UTXO', refresh: '刷新', startMining: '开始挖矿（{{count}} 核）', stopMiner: '停止矿工', statusMining: '挖矿中', statusIdle: '空闲' },
+      mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: '通过寻找以零开头的交易ID来挖矿RABB1TS代币', liteNotice: '性能受限的网页版', liteNoticeDesc: '这个基于浏览器的矿工使用RPC调用，受网络延迟限制。原生桌面矿工（即将推出）的哈希率会快得多。', walletLocked: '钱包已锁定', walletLockedDesc: '请解锁您的钱包以使用 Rabb1ts 矿工。', config: '挖矿配置', selectUtxo: '选择 UTXO', refresh: '刷新', startMining: '开始挖矿（{{count}} 核）', stopMiner: '停止矿工', statusMining: '挖矿中', statusIdle: '空闲' },
       mempool: { title: '内存池', status: '状态', refresh: '刷新', loading: '加载中...', size: '大小', bytes: '字节', usage: '使用量', minFee: '最低手续费', txids: 'TxIDs', none: '未找到内存池交易。', raw: 'RAW 视图', loadingTx: '正在加载交易...', selectPrompt: '在左侧选择一个 TXID 查看详情。' }
     }
   },
   vi: {
     translation: {
-      nav: { home: 'Trang chủ', dashboard: 'Bảng điều khiển', send: 'Gửi', receive: 'Nhận', explorer: 'Trình khám phá', mempool: 'Mempool', inscribe: 'Ghi chữ', mine: 'Rabb1ts Miner' },
+      nav: { home: 'Trang chủ', dashboard: 'Bảng điều khiển', send: 'Gửi', receive: 'Nhận', explorer: 'Trình khám phá', mempool: 'Mempool', inscribe: 'Ghi chữ', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Khóa ví', refresh: 'Làm mới' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Không lưu ký & Mã nguồn mở.' },
       dashboard: { title: 'Bảng điều khiển', welcome: 'Chào mừng trở lại!' },
@@ -735,13 +739,13 @@ const resources = {
       },
       tokens: { title: 'Token', none: 'Không tìm thấy token', id: 'ID', standard: 'Tiêu chuẩn', indexerUnavailable: 'Ordinals Indexer không khả dụng', indexerUnavailableDesc: 'Dữ liệu token chỉ có thể hiển thị khi Ordinals Indexer đang chạy và đồng bộ. Bạn vẫn có thể tạo Ordinals và Tokens.', loadError: 'Lỗi khi tải dữ liệu token. Vui lòng thử lại sau.', inscribeNow: 'Ghi chữ ngay' },
       inscribe: { title: 'Ghi chữ', subtitle: 'Ghi Ordinals & Tokens lên blockchain B1T', tabImage: 'Hình ảnh / Ordinal', tabToken: 'Token / Văn bản', dropzone: 'Kéo hình ảnh vào đây hoặc nhấp', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Xem trước', original: 'Gốc', compressed: 'Nén (WebP)', quality: 'Chất lượng', formMode: 'Biểu mẫu', rawMode: 'Thủ công (JSON)', operation: 'Thao tác', opDeploy: 'Triển khai', opDeployDesc: 'Tạo token mới', opMint: 'Mint', opMintDesc: 'Đúc token', opTransfer: 'Chuyển', opTransferDesc: 'Chuyển token', ticker: 'Mã token', settings: 'Cài đặt', success: 'Ghi chữ thành công!', walletLocked: 'Ví đã khóa' },
-      mine: { title: 'Rabb1ts Miner', subtitle: 'Đào RABB1TS bằng cách tìm ID giao dịch bắt đầu bằng số không', walletLocked: 'Ví đã khóa', walletLockedDesc: 'Vui lòng mở khóa ví để truy cập Rabb1ts Miner.', config: 'Cấu hình đào', selectUtxo: 'Chọn UTXO', refresh: 'Làm mới', startMining: 'Bắt đầu đào ({{count}} lõi)', stopMiner: 'Dừng máy đào', statusMining: 'ĐANG ĐÀO', statusIdle: 'CHƯA BẮT ĐẦU' },
+      mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Đào RABB1TS bằng cách tìm ID giao dịch bắt đầu bằng số không', liteNotice: 'Phiên bản web với hiệu suất hạn chế', liteNoticeDesc: 'Trình đào dựa trên trình duyệt này sử dụng lệnh gọi RPC và bị giới hạn bởi độ trễ mạng. Để có tốc độ hash tối đa, trình đào máy tính để bàn gốc (sắp ra mắt) sẽ nhanh hơn nhiều.', walletLocked: 'Ví đã khóa', walletLockedDesc: 'Vui lòng mở khóa ví để truy cập Rabb1ts Miner.', config: 'Cấu hình đào', selectUtxo: 'Chọn UTXO', refresh: 'Làm mới', startMining: 'Bắt đầu đào ({{count}} lõi)', stopMiner: 'Dừng máy đào', statusMining: 'ĐANG ĐÀO', statusIdle: 'CHƯA BẮT ĐẦU' },
       mempool: { title: 'Mempool', status: 'Trạng thái', refresh: 'Làm mới', loading: 'Đang tải...', size: 'Kích thước', bytes: 'Byte', usage: 'Sử dụng', minFee: 'Phí tối thiểu', txids: 'TxIDs', none: 'Không có giao dịch trong mempool.', raw: 'RAW', loadingTx: 'Đang tải giao dịch...', selectPrompt: 'Chọn một TXID bên trái để xem chi tiết.' }
     }
   },
   id: {
     translation: {
-      nav: { home: 'Beranda', dashboard: 'Dasbor', send: 'Kirim', receive: 'Terima', explorer: 'Explorer', mempool: 'Mempool', inscribe: 'Tulis', mine: 'Rabb1ts Miner' },
+      nav: { home: 'Beranda', dashboard: 'Dasbor', send: 'Kirim', receive: 'Terima', explorer: 'Explorer', mempool: 'Mempool', inscribe: 'Tulis', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Kunci Dompet', refresh: 'Segarkan' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
       dashboard: { title: 'Dasbor', welcome: 'Selamat datang kembali!' },
@@ -763,7 +767,7 @@ const resources = {
       },
       tokens: { title: 'Token', none: 'Tidak ada token ditemukan', id: 'ID', standard: 'Standar', indexerUnavailable: 'Ordinals Indexer tidak tersedia', indexerUnavailableDesc: 'Data token hanya dapat ditampilkan setelah Ordinals Indexer berjalan dan tersinkron. Anda sudah bisa membuat Ordinals dan Token.', loadError: 'Gagal memuat data token. Silakan coba lagi nanti.', inscribeNow: 'Tulis sekarang' },
       inscribe: { title: 'Tulis', subtitle: 'Tulis Ordinals & Token di blockchain B1T', tabImage: 'Gambar / Ordinal', tabToken: 'Token / Teks', dropzone: 'Seret gambar ke sini atau klik', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Pratinjau', original: 'Asli', compressed: 'Terkompresi (WebP)', quality: 'Kualitas', formMode: 'Formulir', rawMode: 'Manual (JSON)', operation: 'Operasi', opDeploy: 'Deploy', opDeployDesc: 'Buat token baru', opMint: 'Mint', opMintDesc: 'Cetak token', opTransfer: 'Transfer', opTransferDesc: 'Transfer token', ticker: 'Ticker Token', settings: 'Pengaturan', success: 'Penulisan berhasil!', walletLocked: 'Dompet terkunci' },
-      mine: { title: 'Rabb1ts Miner', subtitle: 'Tambang RABB1TS dengan menemukan ID transaksi yang dimulai dengan nol', walletLocked: 'Dompet terkunci', walletLockedDesc: 'Silakan buka kunci dompet Anda untuk mengakses Rabb1ts Miner.', config: 'Konfigurasi penambangan', selectUtxo: 'Pilih UTXO', refresh: 'Segarkan', startMining: 'Mulai menambang ({{count}} inti)', stopMiner: 'Hentikan penambang', statusMining: 'MENAMBANG', statusIdle: 'SIAP' },
+      mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Tambang RABB1TS dengan menemukan ID transaksi yang dimulai dengan nol', liteNotice: 'Versi web dengan kinerja terbatas', liteNoticeDesc: 'Penambang berbasis browser ini menggunakan panggilan RPC dan dibatasi oleh latensi jaringan. Untuk hashrate maksimum, penambang desktop native (segera hadir) akan jauh lebih cepat.', walletLocked: 'Dompet terkunci', walletLockedDesc: 'Silakan buka kunci dompet Anda untuk mengakses Rabb1ts Miner.', config: 'Konfigurasi penambangan', selectUtxo: 'Pilih UTXO', refresh: 'Segarkan', startMining: 'Mulai menambang ({{count}} inti)', stopMiner: 'Hentikan penambang', statusMining: 'MENAMBANG', statusIdle: 'SIAP' },
       mempool: { title: 'Mempool', status: 'Status', refresh: 'Segarkan', loading: 'Memuat...', size: 'Ukuran', bytes: 'Byte', usage: 'Penggunaan', minFee: 'Biaya minimum', txids: 'TxIDs', none: 'Tidak ada transaksi mempool.', raw: 'RAW', loadingTx: 'Memuat transaksi...', selectPrompt: 'Pilih TXID di kiri untuk melihat detail.' }
     }
   },

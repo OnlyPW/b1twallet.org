@@ -18,10 +18,10 @@
 - ✅ RPC integration with B1T Core Node
 - ✅ Docker setup for easy deployment
 
-### 📅 Phase 2-4 (Planned)
-- 🔜 Display Ordinals/Inscriptions
-- 🔜 Create Inscriptions (with image compression)
-- 🔜 Transfer Ordinals
+### ✅ Ordinals (integriert)
+- ✅ Display Ordinals/Inscriptions
+- ✅ Create Inscriptions (with image compression)
+- 🔜 Transfer Ordinals (in Planung)
 
 ---
 
@@ -240,8 +240,8 @@ curl http://localhost:3001/api/wallet/balance/<ADDRESS>
 
 - [x] Phase 0: Project Setup
 - [x] Phase 1: Basic Wallet (Send, Receive, Balance)
-- [ ] Phase 2: Display Ordinals
-- [ ] Phase 3: Create Inscriptions
+- [x] Phase 2: Display Ordinals
+- [x] Phase 3: Create Inscriptions (with image compression)
 - [ ] Phase 4: Transfer Ordinals
 - [ ] Phase 5: Hardware Wallet Support
 - [ ] Phase 6: Multi-Sig Support

@@ -29,7 +29,8 @@ services:
 
   ord-indexer:
     build:
-      context: ./TEMP_ORD_BIT
+      context: .
+      dockerfile: ord-indexer.Dockerfile
     container_name: b1t-ord-indexer
     restart: unless-stopped
     environment:

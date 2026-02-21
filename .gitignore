@@ -39,4 +39,7 @@ coverage/
 tmp/
 temp/
 
+# Ord-Bit local clone (if used)
+ord-bit/
+
 

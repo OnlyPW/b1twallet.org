@@ -187,4 +187,51 @@ export async function insertBlock({ height, hash, prev_hash, time, tx_count }, d
   });
 }
 
-export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock };
+/** Bulk-Insert für Indexer: viele Transaktionen in einem Statement (weniger DB-Roundtrips). */
+export async function insertTransactionsBulk(rows, dbClient = null) {
+  if (!rows.length) return;
+  return withClient(dbClient, async (client) => {
+    const values = [];
+    const params = [];
+    let i = 1;
+    for (const r of rows) {
+      values.push(`($${i},$${i+1},$${i+2},$${i+3},$${i+4},$${i+5})`);
+      params.push(r.txid, r.block_height ?? null, r.time ?? null, r.size ?? null, r.vsize ?? null, r.version ?? null);
+      i += 6;
+    }
+    await client.query(
+      `INSERT INTO transactions(txid, block_height, time, size, vsize, version)
+       VALUES ${values.join(',')}
+       ON CONFLICT (txid) DO NOTHING`,
+      params
+    );
+  });
+}
+
+/** Bulk-Insert für Indexer: viele Outputs in einem Statement. */
+export async function insertOutputsBulk(rows, dbClient = null) {
+  if (!rows.length) return;
+  return withClient(dbClient, async (client) => {
+    const values = [];
+    const params = [];
+    let i = 1;
+    for (const r of rows) {
+      values.push(`($${i},$${i+1},$${i+2},$${i+3},$${i+4},$${i+5},FALSE)`);
+      params.push(r.txid, r.vout, r.address ?? null, r.value_satoshi, r.script_pub_key ?? null, r.block_height ?? null);
+      i += 6;
+    }
+    await client.query(
+      `INSERT INTO outputs(txid, vout, address, value_satoshi, script_pub_key, block_height, spent)
+       VALUES ${values.join(',')}
+       ON CONFLICT (txid, vout) DO NOTHING`,
+      params
+    );
+    for (const r of rows) {
+      if (r.address) {
+        await upsertAddressStats(r.address, { addReceived: r.value_satoshi, height: r.block_height }, client);
+      }
+    }
+  });
+}
+
+export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock, insertTransactionsBulk, insertOutputsBulk };

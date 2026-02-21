@@ -1,17 +1,8 @@
 import rpcClient from '../services/rpcClient.js';
-import { initSchema, getTipHeight, insertBlock, insertTransaction, insertOutput, markOutputSpent, getPool } from '../services/db.js';
+import { initSchema, getTipHeight, insertBlock, insertTransactionsBulk, insertOutputsBulk, markOutputSpent, getPool } from '../services/db.js';
 
-// B1T Network (für Adress-Decoding Fallback bei fehlenden explorer-Feldern)
-const B1T_NETWORK = {
-  messagePrefix: '\x18Bit Signed Message:\n',
-  bech32: 'bc',
-  bip32: { public: 0x02FACAFD, private: 0x02FAC398 },
-  pubKeyHash: 0x19,
-  scriptHash: 0x16,
-  wif: 0x9E,
-};
-
-
+// Batch-Größe aus Umgebung (INDEXER_BATCH_SIZE); Fallback 1000 nur wenn nicht in .env/docker gesetzt
+const BATCH_SIZE = Math.max(1, parseInt(process.env.INDEXER_BATCH_SIZE || '1000', 10));
 
 async function processBlockData(height, block, client) {
   await insertBlock({
@@ -22,48 +13,50 @@ async function processBlockData(height, block, client) {
     tx_count: Array.isArray(block.tx) ? block.tx.length : 0,
   }, client);
 
-  for (const tx of block.tx || []) {
-    await insertTransaction({
-      txid: tx.txid,
-      block_height: height,
-      time: tx.time || block.time,
-      size: tx.size,
-      vsize: tx.vsize,
-      version: tx.version,
-    }, client);
+  const txs = block.tx || [];
+  const transactionRows = txs.map(tx => ({
+    txid: tx.txid,
+    block_height: height,
+    time: tx.time || block.time,
+    size: tx.size,
+    vsize: tx.vsize,
+    version: tx.version,
+  }));
+  await insertTransactionsBulk(transactionRows, client);
 
-    // Inputs: mark previous outputs as spent
+  // Inputs: mark previous outputs as spent (pro TX nötig, Reihenfolge beibehalten)
+  for (const tx of txs) {
     for (const vin of tx.vin || []) {
-      if (vin.coinbase) continue; // Coinbase hat kein prevout
+      if (vin.coinbase) continue;
       const prevTxid = vin.txid;
       const prevVout = vin.vout;
       if (prevTxid !== undefined && prevVout !== undefined) {
         await markOutputSpent(prevTxid, prevVout, tx.txid, height, client);
       }
     }
+  }
 
-    // Outputs: insert new UTXOs
+  // Outputs: ein Bulk-Insert pro Block
+  const outputRows = [];
+  for (const tx of txs) {
+    const spkDefault = {};
     for (const vout of tx.vout || []) {
       const value = Math.round((vout.value || 0) * 100000000);
+      const spk = vout.scriptPubKey || spkDefault;
       let address = null;
-      // explorer liefert oft addresses/addr; Core liefert address in scriptPubKey
-      const spk = vout.scriptPubKey || {};
-      if (spk.address) {
-        address = spk.address;
-      } else if (Array.isArray(spk.addresses) && spk.addresses.length > 0) {
-        address = spk.addresses[0];
-      }
-
-      await insertOutput({
+      if (spk.address) address = spk.address;
+      else if (Array.isArray(spk.addresses) && spk.addresses.length > 0) address = spk.addresses[0];
+      outputRows.push({
         txid: tx.txid,
         vout: vout.n,
         address,
         value_satoshi: value,
         script_pub_key: spk.hex || spk.asm || null,
         block_height: height,
-      }, client);
+      });
     }
   }
+  await insertOutputsBulk(outputRows, client);
 }
 
 async function fetchBlock(height) {
@@ -102,59 +95,52 @@ export async function startIndexer() {
       const chainTip = await rpcClient.getBlockCount();
       if (nextHeight > chainTip) return;
 
-      console.log(`🚀 Indexer startet bei Block ${nextHeight} (Chain Tip: ${chainTip})`);
+      console.log(`🚀 Indexer startet bei Block ${nextHeight} (Chain Tip: ${chainTip}, Batch: ${BATCH_SIZE} Blöcke)`);
 
-      // Prefetch des ersten Blocks
-      let nextBlockPromise = fetchBlock(nextHeight);
+      let totalTransactions = 0;
 
       while (nextHeight <= chainTip) {
-        // Log nur alle 100 Blöcke oder wenn fast am Tip
-        if (nextHeight % 100 === 0 || nextHeight > chainTip - 10) {
-          console.log(`🧩 Indexiere Block ${nextHeight}/${chainTip}`);
+        const batchCount = Math.min(BATCH_SIZE, chainTip - nextHeight + 1);
+        const batchEnd = nextHeight + batchCount - 1;
+
+        const blocks = [];
+        for (let i = 0; i < batchCount; i++) {
+          const height = nextHeight + i;
+          try {
+            const block = await fetchBlock(height);
+            blocks.push({ height, block });
+          } catch (e) {
+            console.error(`Fehler beim Laden von Block ${height}:`, e.message);
+            await new Promise(r => setTimeout(r, 2000));
+            i--;
+            continue;
+          }
         }
 
-        // 1. Hole Daten (warte auf Promise)
-        let blockData;
-        try {
-          blockData = await nextBlockPromise;
-        } catch (e) {
-          console.error(`Fehler beim Laden von Block ${nextHeight}:`, e.message);
-          await new Promise(r => setTimeout(r, 2000));
-          // Retry fetching this block
-          nextBlockPromise = fetchBlock(nextHeight);
-          continue;
-        }
+        const txInBatch = blocks.reduce((sum, { block }) => sum + (block.tx || []).length, 0);
+        totalTransactions += txInBatch;
+        console.log(`🧩 Batch ${nextHeight}–${batchEnd}: ${blocks.length} Blöcke, ${txInBatch} Transaktionen (insgesamt ${totalTransactions} Tx)`);
 
-        // 2. Starte Fetch für NÄCHSTEN Block (parallel zur DB-Arbeit)
-        if (nextHeight < chainTip) {
-          nextBlockPromise = fetchBlock(nextHeight + 1);
-        }
-
-        // 3. DB Transaction
         const client = await getPool().connect();
         try {
           await client.query('BEGIN');
-          await processBlockData(nextHeight, blockData, client);
+          for (const { height, block } of blocks) {
+            await processBlockData(height, block, client);
+          }
           await client.query('COMMIT');
         } catch (e) {
           await client.query('ROLLBACK');
-          console.error(`Fehler beim Speichern von Block ${nextHeight}:`, e.message);
-          throw e; // Break loop, wait for retry interval
+          console.error(`Fehler beim Speichern der Batch ${nextHeight}–${batchEnd}:`, e.message);
+          throw e;
         } finally {
           client.release();
         }
 
-        nextHeight++;
+        nextHeight += blocks.length;
 
-        // Wenn wir den Chain Tip erreichen, aktualisieren wir ihn, falls neue Blöcke angekommen sind
         if (nextHeight > chainTip) {
           const newTip = await rpcClient.getBlockCount();
-          if (newTip > chainTip) {
-            // Es gibt noch mehr zu tun, loop läuft weiter (via while condition)
-            // loop variable chainTip ist local const, also müssen wir vorsichtig sein.
-            // Aber besser ist `break` und neu aufrufen via setInterval loop
-            break;
-          }
+          if (newTip > chainTip) break;
         }
       }
     } catch (e) {

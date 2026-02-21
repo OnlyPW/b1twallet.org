@@ -77,6 +77,7 @@ services:
       - DB_NAME=b1twallet
       - INDEXER_ENABLED=true
       - INDEXER_START_HEIGHT=0
+      - INDEXER_BATCH_SIZE=1000
       - ORD_INDEXER_URL=http://b1t-ord-indexer:8080
     volumes:
       - ./backend:/app
@@ -84,8 +85,10 @@ services:
     networks:
       - b1t-network
     depends_on:
-      - b1t-db
-      - bitcore
+      b1t-db:
+        condition: service_healthy
+      bitcore:
+        condition: service_healthy
     restart: unless-stopped
 
   wallet-frontend:
@@ -123,6 +126,12 @@ services:
     networks:
       - b1t-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U b1t -d b1twallet"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   b1t-network:
@@ -130,5 +139,9 @@ networks:
 
 volumes:
   pgdata:
+    name: b1t-pgdata
   bitcore-data:
+    # Fester Name: gleiches Volume bei jedem Start/Neustart, unabhängig vom Projektpfad – verhindert Neusync der Blockchain
+    name: b1t-bitcore-data
   ord-data:
+    name: b1t-ord-data

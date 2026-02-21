@@ -13,11 +13,19 @@ services:
       - RPC_ALLOW_IP=0.0.0.0/0
     volumes:
       - bitcore-data:/data
+      # Vorlage sorgt dafür, dass das Image die vollständige bit.conf (mit Indizes) erzeugt
+      - ./bitcore-config/bit.conf.template:/config/bit.conf:ro
     ports:
       - "8333:8333"
       - "8332:8332"
     networks:
       - b1t-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -u user:changeme -d '{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblockcount\",\"params\":[]}' http://127.0.0.1:8332/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
   ord-indexer:
     build:
@@ -44,7 +52,8 @@ services:
     networks:
       - b1t-network
     depends_on:
-      - bitcore
+      bitcore:
+        condition: service_healthy
 
   wallet-backend:
     container_name: b1t-wallet-backend

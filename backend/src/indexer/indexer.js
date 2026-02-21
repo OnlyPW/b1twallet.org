@@ -24,19 +24,8 @@ async function processBlockData(height, block, client) {
   }));
   await insertTransactionsBulk(transactionRows, client);
 
-  // Inputs: mark previous outputs as spent (pro TX nötig, Reihenfolge beibehalten)
-  for (const tx of txs) {
-    for (const vin of tx.vin || []) {
-      if (vin.coinbase) continue;
-      const prevTxid = vin.txid;
-      const prevVout = vin.vout;
-      if (prevTxid !== undefined && prevVout !== undefined) {
-        await markOutputSpent(prevTxid, prevVout, tx.txid, height, client);
-      }
-    }
-  }
-
-  // Outputs: ein Bulk-Insert pro Block
+  // Outputs ZUERST einfügen (bevor Inputs verarbeitet werden!)
+  // Sonst werden Outputs, die im selben Block verbrannt werden, nicht als spent markiert
   const outputRows = [];
   for (const tx of txs) {
     const spkDefault = {};
@@ -57,6 +46,18 @@ async function processBlockData(height, block, client) {
     }
   }
   await insertOutputsBulk(outputRows, client);
+
+  // Inputs NACH Outputs verarbeiten (jetzt existieren die Outputs in der DB)
+  for (const tx of txs) {
+    for (const vin of tx.vin || []) {
+      if (vin.coinbase) continue;
+      const prevTxid = vin.txid;
+      const prevVout = vin.vout;
+      if (prevTxid !== undefined && prevVout !== undefined) {
+        await markOutputSpent(prevTxid, prevVout, tx.txid, height, client);
+      }
+    }
+  }
 }
 
 async function fetchBlock(height) {
@@ -148,20 +149,16 @@ export async function startIndexer() {
     }
   }
 
-  // Initiale Synchronisierung & Polling
-  await syncLoop();
+  let isRunning = false;
 
-  // Polling Loop
-  setInterval(async () => {
-    // Nur starten wenn wir nicht gerade noch im syncLoop sind? 
-    // Da syncLoop async ist und blockiert (await), wird `setInterval` Stacken wenn wir nicht aufpassen?
-    // Nein, `setInterval` feuert blind. Besser: `setTimeout` rekursiv oder Flag.
-    // Einfachster Fix: syncLoop als 'running' markieren.
-  }, 10_000);
-
-  // Besserer Loop:
   const run = async () => {
-    await syncLoop();
+    if (isRunning) return;
+    isRunning = true;
+    try {
+      await syncLoop();
+    } finally {
+      isRunning = false;
+    }
     setTimeout(run, 5000);
   };
   run();

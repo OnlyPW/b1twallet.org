@@ -138,9 +138,10 @@ export async function upsertAddressStats(address, { addReceived = 0, addSent = 0
 
 export async function markOutputSpent(prevTxid, prevVout, spentTxid, spentHeight, dbClient = null) {
   return withClient(dbClient, async (client) => {
-    const { rows } = await client.query('SELECT address, value_satoshi FROM outputs WHERE txid=$1 AND vout=$2', [prevTxid, prevVout]);
+    const { rows } = await client.query('SELECT address, value_satoshi, spent FROM outputs WHERE txid=$1 AND vout=$2', [prevTxid, prevVout]);
     if (rows.length === 0) return;
-    const { address, value_satoshi } = rows[0];
+    const { address, value_satoshi, spent } = rows[0];
+    if (spent) return;
     await client.query(
       `UPDATE outputs SET spent=TRUE, spent_txid=$3, spent_block_height=$4 WHERE txid=$1 AND vout=$2`,
       [prevTxid, prevVout, spentTxid, spentHeight]
@@ -212,10 +213,19 @@ export async function insertTransactionsBulk(rows, dbClient = null) {
 export async function insertOutputsBulk(rows, dbClient = null) {
   if (!rows.length) return;
   return withClient(dbClient, async (client) => {
+    const existingRes = await client.query(
+      `SELECT txid, vout FROM outputs WHERE (txid, vout) IN (${rows.map((_, i) => `($${i*2+1}, $${i*2+2})`).join(',')})`,
+      rows.flatMap(r => [r.txid, r.vout])
+    );
+    const existingKeys = new Set(existingRes.rows.map(r => `${r.txid}:${r.vout}`));
+    const newRows = rows.filter(r => !existingKeys.has(`${r.txid}:${r.vout}`));
+
+    if (newRows.length === 0) return;
+
     const values = [];
     const params = [];
     let i = 1;
-    for (const r of rows) {
+    for (const r of newRows) {
       values.push(`($${i},$${i+1},$${i+2},$${i+3},$${i+4},$${i+5},FALSE)`);
       params.push(r.txid, r.vout, r.address ?? null, r.value_satoshi, r.script_pub_key ?? null, r.block_height ?? null);
       i += 6;
@@ -226,7 +236,7 @@ export async function insertOutputsBulk(rows, dbClient = null) {
        ON CONFLICT (txid, vout) DO NOTHING`,
       params
     );
-    for (const r of rows) {
+    for (const r of newRows) {
       if (r.address) {
         await upsertAddressStats(r.address, { addReceived: r.value_satoshi, height: r.block_height }, client);
       }

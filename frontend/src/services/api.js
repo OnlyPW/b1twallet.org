@@ -119,13 +119,24 @@ export const testConnection = () => api.get('/api/test-connection');
 // Indexer Status
 export const getIndexerStatus = () => api.get('/api/indexer-status');
 
-// Explorer API
+// Explorer API (Blockchain: block/tx/address search)
 export const explorerApi = {
   search: (q) => api.get('/api/explorer/search', { params: { q } }),
+  getLatestData: () => api.get('/api/explorer/latest-data'),
   getAddress: (address) => api.get(`/api/explorer/address/${address}`),
   getTx: (txid) => api.get(`/api/explorer/tx/${txid}`),
   getBlock: (hashOrHeight) => api.get(`/api/explorer/block/${hashOrHeight}`),
 };
+
+// Ordinals Explorer API (ord-indexer proxy)
+export const ordinalsExplorerApi = {
+  getStatus: () => api.get('/api/ordinals/explorer/status'),
+  getLatestInscriptions: (page = 0) => api.get('/api/ordinals/explorer/inscriptions', { params: { page } }),
+  getInscription: (id) => api.get(`/api/ordinals/explorer/inscription/${encodeURIComponent(id)}`),
+  getAddressInscriptions: (address) => api.get(`/api/ordinals/explorer/address/${address}/inscriptions`),
+  getInscriptionContentUrl: (id) => `${API_URL}/api/ordinals/explorer/inscription/${encodeURIComponent(id)}/content`,
+};
+
 
 // Mempool API
 export const mempoolApi = {

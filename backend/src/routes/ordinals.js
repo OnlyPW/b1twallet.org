@@ -283,16 +283,16 @@ router.post('/transfer', async (req, res) => {
       if (rawTx && rawTx.vout && rawTx.vout[insc.utxo_vout]) {
         utxoSatoshis = Math.round(rawTx.vout[insc.utxo_vout].value * 100000000);
       }
-    } catch {}
+    } catch { }
 
     // Load a funding UTXO for the fee
     const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
     let rawUtxos = [];
     if (useIndexer) {
-      try { rawUtxos = await dbWallet.getAddressUtxos(senderAddress); } catch {}
+      try { rawUtxos = await dbWallet.getAddressUtxos(senderAddress); } catch { }
     }
     if (rawUtxos.length === 0) {
-      try { rawUtxos = await rpcClient.getAddressUtxos(senderAddress); } catch {}
+      try { rawUtxos = await rpcClient.getAddressUtxos(senderAddress); } catch { }
     }
 
     // Build a simple transfer transaction using bitcore-lib-b1t
@@ -345,7 +345,7 @@ router.post('/transfer', async (req, res) => {
         `UPDATE inscriptions SET to_address = $1, utxo_txid = $2, utxo_vout = 0 WHERE inscription_txid = $3`,
         [toAddress, txid, inscriptionTxid]
       );
-    } catch {}
+    } catch { }
 
     console.log(`Inscription ${inscriptionTxid} transferred to ${toAddress}, new txid: ${txid}`);
 
@@ -362,4 +362,248 @@ router.post('/transfer', async (req, res) => {
   }
 });
 
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Ord-Indexer Proxy Routes
+ * Forwards requests to the ord-indexer service (Rust, port 8080).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+const ORD_URL = process.env.ORD_INDEXER_URL || 'http://localhost:8080';
+
+async function ordFetch(path, accept = 'application/json') {
+  const fetch = (await import('node-fetch')).default;
+  const res = await fetch(`${ORD_URL}${path}`, {
+    headers: { Accept: accept },
+    timeout: 15000,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`ord-indexer error ${res.status} for ${path}:`, text);
+    throw new Error(`ord-indexer returned ${res.status}`);
+  }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return res.json();
+  return res.text();
+}
+
+/**
+ * Helper to fetch content-type via HEAD request if indexer doesn't provide it in JSON metadata.
+ */
+async function sniffContentType(id) {
+  try {
+    const fetch = (await import('node-fetch')).default;
+    const res = await fetch(`${ORD_URL}/content/${encodeURIComponent(id)}`, {
+      method: 'HEAD',
+      timeout: 5000
+    });
+    if (res.ok) {
+      return String(res.headers.get('content-type') || 'application/octet-stream');
+    }
+
+  } catch (e) {
+    console.warn(`Sniffing failed for ${id}:`, e.message);
+  }
+  return 'application/octet-stream';
+}
+
+
+/**
+ * GET /api/ordinals/explorer/status
+ * Check whether the ord-indexer is reachable and has synced blocks.
+ */
+router.get('/explorer/status', async (req, res) => {
+  try {
+    const blockCount = await ordFetch('/block-count', 'text/plain');
+    res.json({ ok: true, blockCount: String(blockCount).trim() });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/ordinals/explorer/inscriptions?page=0
+ * Latest inscriptions from ord-indexer. 
+ * NOTE: Some versions of ord only return HTML here, so we parse it if needed.
+ */
+router.get('/explorer/inscriptions', async (req, res) => {
+  try {
+    const page = req.query.page || '0';
+    // ord indexer: /inscriptions is "latest", /inscriptions/N is "starting from N"
+    const path = (page === '0' || !page) ? '/inscriptions' : `/inscriptions/${page}`;
+    const rawData = await ordFetch(path, 'text/html');
+
+    // If it's already JSON (not expected here but for robustness)
+    if (typeof rawData === 'object') {
+      return res.json({ success: true, data: rawData });
+    }
+
+    // Parse HTML to extract inscription IDs
+    // Format: <a href=/inscription/ID>... 
+    // IDs can be various lengths in this version of ord
+    const idRegex = /\/inscription\/([a-zA-Z0-9]+)/g;
+    const matches = [...rawData.matchAll(idRegex)];
+
+    // Dedup IDs
+    const uniqueIds = [];
+    const seen = new Set();
+    for (const match of matches) {
+      const id = match[1];
+      if (!seen.has(id)) {
+        seen.add(id);
+        uniqueIds.push(id);
+      }
+    }
+
+    // Fetch details for each ID in parallel (limit to 20 to avoid overwhelming)
+    const detailPromises = uniqueIds.slice(0, 20).map(async (id) => {
+      try {
+        const d = await ordFetch(`/inscription/${encodeURIComponent(id)}?json=true`);
+        // The indexer response can vary significantly between versions.
+        // We look for metadata at both the root (d) and inside 'inscription' (d.inscription).
+        const info = (d?.inscription && typeof d.inscription === 'object') ? d.inscription : d;
+
+        // Robustly clean and stringify metadata fields
+        const clean = (val) => {
+          if (val === undefined || val === null) return '';
+          if (Array.isArray(val)) return Buffer.from(val).toString('utf-8');
+          let s = String(val);
+          if (s.startsWith('[') && s.endsWith(']')) {
+            try {
+              const p = JSON.parse(s);
+              if (Array.isArray(p)) return Buffer.from(p).toString('utf-8');
+            } catch (e) { }
+          }
+          return s;
+        };
+
+        const rawCT = info.content_type || info.media_type || d.content_type || d.media_type || '';
+        let contentType = clean(rawCT);
+        if (!contentType || contentType === 'application/octet-stream') {
+          contentType = await sniffContentType(id);
+        }
+        if (contentType) contentType = clean(contentType).split(';')[0].trim();
+
+        // Direct access with root fallbacks
+        const num = info.inscription_number ?? d.inscription_number ?? info.number ?? d.number ?? info.num ?? d.num;
+        const h = info.genesis_height ?? d.genesis_height ?? info.height ?? d.height ?? info.block_height ?? d.block_height;
+
+        return {
+          id,
+          number: (num !== undefined && num !== null && num !== '') ? String(num) : '?',
+          content_type: clean(contentType),
+          genesis_height: (h !== undefined && h !== null && h !== '') ? String(h) : '?',
+          timestamp: info.timestamp || d.timestamp,
+        };
+
+
+
+
+
+      } catch (e) {
+        // Fallback for metadata failure: Sniff content type via HEAD
+        let contentType = await sniffContentType(id);
+        if (contentType) {
+          contentType = String(contentType).split(';')[0].trim().toLowerCase();
+        }
+        return {
+          id,
+          number: '?',
+          content_type: contentType || 'application/octet-stream',
+          genesis_height: '?',
+          timestamp: undefined,
+          error: true
+        };
+      }
+    });
+
+
+
+    const results = await Promise.all(detailPromises);
+    res.json({ success: true, data: { inscriptions: results } });
+
+
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+
+/**
+ * GET /api/ordinals/explorer/inscription/:id
+ * Details for a specific inscription.
+ */
+router.get('/explorer/inscription/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = await ordFetch(`/inscription/${encodeURIComponent(id)}?json=true`);
+    res.json({ success: true, data });
+  } catch (err) {
+    // If metadata fails, try to at least provide the content-type via sniffing
+    const contentType = await sniffContentType(id);
+    res.json({
+      success: true,
+      data: {
+        inscription_id: id,
+        id,
+        content_type: contentType,
+        media_type: contentType,
+        number: '?',
+        genesis_height: '?',
+        status: 'error-recovering'
+      }
+    });
+  }
+});
+
+/**
+ * GET /api/ordinals/explorer/inscription/:id/content
+ * Proxy raw inscription content (image, text, etc.) from ord-indexer.
+ */
+router.get('/explorer/inscription/:id/content', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fetch = (await import('node-fetch')).default;
+    const upstream = await fetch(`${ORD_URL}/content/${encodeURIComponent(id)}`, { timeout: 15000 });
+    if (!upstream.ok) return res.status(upstream.status).end();
+    const ct = upstream.headers.get('content-type') || 'application/octet-stream';
+    res.set('Content-Type', ct);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    // Allow framing from frontend
+    res.removeHeader('X-Frame-Options');
+    res.set('Content-Security-Policy', "frame-ancestors 'self' http://localhost:3000 http://localhost:3002");
+    upstream.body.pipe(res);
+
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/ordinals/explorer/address/:address/inscriptions
+ * Inscriptions associated with an address.
+ */
+router.get('/explorer/address/:address/inscriptions', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const data = await ordFetch(`/inscriptions/address/${encodeURIComponent(address)}`);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/ordinals/explorer/block-count
+ * Current block count from ord-indexer.
+ */
+router.get('/explorer/block-count', async (req, res) => {
+  try {
+    const blockCount = await ordFetch('/block-count', 'text/plain');
+    res.json({ success: true, blockCount: String(blockCount).trim() });
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
+

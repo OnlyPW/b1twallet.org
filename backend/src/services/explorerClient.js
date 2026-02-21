@@ -127,10 +127,14 @@ class B1TExplorerClient {
         `${this.baseURL}/api/getrawtransaction`,
         { params: { txid, decrypt: 1 }, timeout: 10000 }
       );
+      // Check if response data is an error string (some explorers do this)
+      if (typeof response.data === 'string' && response.data.toLowerCase().includes('error')) {
+        throw new Error(response.data);
+      }
       return response.data;
     } catch (error) {
       if (EXPLORER_VERBOSE) console.error('Explorer API Error (getTransaction):', error.message);
-      throw new Error('Transaktion nicht gefunden');
+      throw new Error('Transaktion nicht gefunden oder API Fehler');
     }
   }
 

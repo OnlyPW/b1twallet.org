@@ -17,9 +17,21 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security Middleware
-app.use(helmet());
 const corsOriginEnv = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3002';
 const allowedOrigins = corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean);
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "frame-ancestors": ["'self'", ...allowedOrigins, "http://localhost:3000", "http://localhost:3002"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);

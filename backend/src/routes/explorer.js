@@ -72,6 +72,19 @@ router.get('/block/:hashOrHeight', async (req, res) => {
   }
 });
 
+// Latest data for dashboard
+router.get('/latest-data', async (req, res) => {
+  try {
+    const [blocks, transactions] = await Promise.all([
+      rpcClient.getLatestBlocks(10),
+      rpcClient.getLatestTransactions(10)
+    ]);
+    res.json({ success: true, blocks, transactions });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Search endpoint: detect address, txid, or block
 router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
@@ -86,18 +99,18 @@ router.get('/search', async (req, res) => {
         const txs = await explorerClient.getAddressTransactionsDetailed(q, 0, 25);
         return res.json({ success: true, type: 'address', address: q, balance, transactions: txs, count: txs.length });
       }
-    } catch {}
+    } catch { }
 
     // Txid?
     if (isHex64(q)) {
       try {
         const tx = await explorerClient.getTransaction(q);
         return res.json({ success: true, type: 'tx', txid: q, tx });
-      } catch {}
+      } catch { }
       try {
         const tx = await rpcClient.call('getrawtransaction', [q, true]);
         return res.json({ success: true, type: 'tx', txid: q, tx });
-      } catch {}
+      } catch { }
     }
 
     // Block height/hash?
@@ -107,10 +120,12 @@ router.get('/search', async (req, res) => {
         hash = await rpcClient.call('getblockhash', [parseInt(q, 10)]);
       }
       if (isHex64(hash)) {
-        const block = await rpcClient.call('getblock', [hash, 2]);
-        return res.json({ success: true, type: 'block', block });
+        const blockData = await rpcClient.call('getblock', [hash, 2]);
+        if (blockData) {
+          return res.json({ success: true, type: 'block', block: blockData });
+        }
       }
-    } catch {}
+    } catch { }
 
     return res.status(404).json({ success: false, type: 'unknown', error: 'Nicht gefunden' });
   } catch (error) {

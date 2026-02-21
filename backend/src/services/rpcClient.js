@@ -65,6 +65,84 @@ class BitcoinRPCClient {
     return this.call('getbestblockhash');
   }
 
+  async getLatestBlocks(count = 10) {
+    try {
+      const bestHeight = await this.getBlockCount();
+      const blocks = [];
+      for (let i = 0; i < count; i++) {
+        const height = bestHeight - i;
+        if (height < 0) break;
+        const hash = await this.call('getblockhash', [height]);
+        const block = await this.call('getblock', [hash, 1]); // Verbosity 1 for header/txids/stats
+        blocks.push(block);
+      }
+      return blocks;
+    } catch (error) {
+      console.error('Error in getLatestBlocks:', error.message);
+      return [];
+    }
+  }
+
+  async getLatestTransactions(count = 10) {
+    try {
+      const transactions = [];
+
+      // 1. Check Mempool first for the very latest
+      try {
+        const mempoolTxids = await this.getRawMempool();
+        for (const txid of (mempoolTxids || []).slice(0, count)) {
+          try {
+            const tx = await this.call('getrawtransaction', [txid, true]);
+            tx.mempool = true; // Mark as mempool
+            transactions.push(tx);
+          } catch { }
+          if (transactions.length >= count) break;
+        }
+      } catch (e) {
+        console.warn('Mempool fetch failed:', e.message);
+      }
+
+      // 2. Look back through blocks if we need more
+      const bestHeight = await this.getBlockCount();
+      let currentHeight = bestHeight;
+
+      while (transactions.length < count && currentHeight >= 0) {
+        const hash = await this.call('getblockhash', [currentHeight]);
+        const block = await this.call('getblock', [hash, 1]);
+        const txids = block.tx || [];
+
+        // Skip coinbase (index 0)
+        for (let i = 1; i < txids.length && transactions.length < count; i++) {
+          try {
+            const tx = await this.call('getrawtransaction', [txids[i], true]);
+            tx.blocktime = block.time;
+            transactions.push(tx);
+          } catch { }
+        }
+        currentHeight--;
+        // Search up to 100 blocks back for non-coinbase transactions
+        if (bestHeight - currentHeight > 100) break;
+      }
+
+      // 3. Fallback: If still empty, include at least the latest coinbase transactions
+      if (transactions.length === 0) {
+        const bestHash = await this.getBestBlockHash();
+        const block = await this.call('getblock', [bestHash, 1]);
+        const txid = block.tx?.[0];
+        if (txid) {
+          const tx = await this.call('getrawtransaction', [txid, true]);
+          tx.blocktime = block.time;
+          transactions.push(tx);
+        }
+      }
+
+      return transactions;
+    } catch (error) {
+      console.error('Error in getLatestTransactions:', error.message);
+      return [];
+    }
+  }
+
   // Network Methods
   async getNetworkInfo() {
     return this.call('getnetworkinfo');
@@ -91,12 +169,12 @@ class BitcoinRPCClient {
       };
     } catch (error) {
       console.warn('Explorer API Fehler, nutze RPC Fallback:', error.message);
-      
+
       // Fallback 1: Wallet-RPC
       try {
         await this.call('importaddress', [address, '', false]);
         const utxos = await this.call('listunspent', [0, 9999999, [address]]);
-        
+
         let balance = 0;
         for (const utxo of utxos) {
           balance += utxo.amount;
@@ -106,7 +184,7 @@ class BitcoinRPCClient {
         return { balance, received };
       } catch (rpcError) {
         console.warn('Wallet-RPC Fehler, nutze scantxoutset:', rpcError.message);
-        
+
         // Fallback 2: scantxoutset (langsam)
         try {
           const scanResult = await this.call('scantxoutset', ['start', [`addr(${address})`]]);
@@ -120,7 +198,7 @@ class BitcoinRPCClient {
           console.error('scantxoutset Error:', scanError.message);
         }
       }
-      
+
       return { balance: 0, received: 0 };
     }
   }
@@ -164,7 +242,7 @@ class BitcoinRPCClient {
         script: utxo.scriptPubKey
       }));
       if (mapped.length > 0) return mapped;
-      
+
       // Explorer-Fallback: Rekonstruiere UTXOs aus Adress-Transaktionen
       console.log('Kein listunspent-Ergebnis – nutze Explorer-Fallback für UTXOs...');
       const eUtxos = await explorerClient.getAddressUtxos(address);
@@ -178,7 +256,7 @@ class BitcoinRPCClient {
           script: u.script || u.scriptPubKey || null,
         }));
       }
-      
+
       return [];
     } catch (walletError) {
       console.error('Wallet-RPC UTXO-Abruf fehlgeschlagen:', walletError.message);
@@ -210,7 +288,7 @@ class BitcoinRPCClient {
       return txids;
     } catch (error) {
       console.warn('Explorer API Fehler, nutze RPC Fallback:', error.message);
-      
+
       // Fallback: UTXOs durchsuchen
       try {
         await this.call('importaddress', [address, '', false]);

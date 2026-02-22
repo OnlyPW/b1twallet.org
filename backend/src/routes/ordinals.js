@@ -16,8 +16,28 @@ const B1T_NETWORK = {
   wif: 0x9E,
 };
 
+const MAX_MEMPOOL_CHAIN = 20;
+const CONFIRMATION_POLL_INTERVAL = 5000;
+const CONFIRMATION_TIMEOUT = 300000;
+
 function getScriptPubKey(address) {
   return bitcoin.address.toOutputScript(address, B1T_NETWORK).toString('hex');
+}
+
+async function waitForConfirmation(txid, pollInterval = CONFIRMATION_POLL_INTERVAL, timeout = CONFIRMATION_TIMEOUT) {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    try {
+      const tx = await rpcClient.call('getrawtransaction', [txid, true]);
+      if (tx && tx.confirmations && tx.confirmations > 0) {
+        return true;
+      }
+    } catch (e) {
+      // TX might not be in mempool anymore or other error
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+  throw new Error(`Timeout waiting for confirmation of ${txid}`);
 }
 
 /**
@@ -94,22 +114,60 @@ router.post('/inscribe', async (req, res) => {
       mintPrice ? parseInt(mintPrice) : null
     );
 
-    // Broadcast all transactions sequentially
+    const totalTx = pendingTransactions.length;
+    const needsBatching = totalTx > MAX_MEMPOOL_CHAIN;
+    const batchCount = needsBatching ? Math.ceil(totalTx / MAX_MEMPOOL_CHAIN) : 1;
+
+    if (needsBatching) {
+      console.log(`Large inscription: ${totalTx} transactions, splitting into ${batchCount} batches (max ${MAX_MEMPOOL_CHAIN} per batch)`);
+    }
+
     const broadcastResults = [];
-    for (const ptx of pendingTransactions) {
-      try {
-        const txid = await rpcClient.sendRawTransaction(ptx.hex);
-        broadcastResults.push({ transactionNumber: ptx.transactionNumber, txid, status: 'broadcast' });
-        console.log(`  Tx ${ptx.transactionNumber}/${pendingTransactions.length} broadcast: ${txid}`);
-      } catch (e) {
-        broadcastResults.push({ transactionNumber: ptx.transactionNumber, txid: ptx.txid, status: 'failed', error: e.message });
-        console.error(`  Tx ${ptx.transactionNumber} broadcast failed:`, e.message);
-        return res.status(500).json({
-          success: false,
-          error: `Transaction ${ptx.transactionNumber} broadcast failed: ${e.message}`,
-          broadcastResults,
-          totalTransactions: pendingTransactions.length,
-        });
+    let lastBatchTxid = null;
+
+    for (let batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+      const batchStart = batchIndex * MAX_MEMPOOL_CHAIN;
+      const batchEnd = Math.min(batchStart + MAX_MEMPOOL_CHAIN, totalTx);
+      const batchTxs = pendingTransactions.slice(batchStart, batchEnd);
+
+      if (needsBatching) {
+        console.log(`Batch ${batchIndex + 1}/${batchCount}: Broadcasting transactions ${batchStart + 1}-${batchEnd}`);
+      }
+
+      for (const ptx of batchTxs) {
+        try {
+          const txid = await rpcClient.sendRawTransaction(ptx.hex);
+          broadcastResults.push({ transactionNumber: ptx.transactionNumber, txid, status: 'broadcast' });
+          console.log(`  Tx ${ptx.transactionNumber}/${totalTx} broadcast: ${txid}`);
+          lastBatchTxid = txid;
+        } catch (e) {
+          broadcastResults.push({ transactionNumber: ptx.transactionNumber, txid: ptx.txid, status: 'failed', error: e.message });
+          console.error(`  Tx ${ptx.transactionNumber} broadcast failed:`, e.message);
+          return res.status(500).json({
+            success: false,
+            error: `Transaction ${ptx.transactionNumber} broadcast failed: ${e.message}`,
+            broadcastResults,
+            totalTransactions: totalTx,
+            batchInfo: needsBatching ? { currentBatch: batchIndex + 1, totalBatches: batchCount } : null,
+          });
+        }
+      }
+
+      if (batchIndex < batchCount - 1 && lastBatchTxid) {
+        console.log(`Batch ${batchIndex + 1}/${batchCount} complete. Waiting for 1 confirmation before continuing...`);
+        try {
+          await waitForConfirmation(lastBatchTxid);
+          console.log(`Confirmation received. Continuing with batch ${batchIndex + 2}...`);
+        } catch (waitErr) {
+          console.error(`Timeout waiting for confirmation:`, waitErr.message);
+          return res.status(500).json({
+            success: false,
+            error: `Timeout waiting for block confirmation between batches: ${waitErr.message}`,
+            broadcastResults,
+            totalTransactions: totalTx,
+            batchInfo: { currentBatch: batchIndex + 1, totalBatches: batchCount, waitingForConfirmation: lastBatchTxid },
+          });
+        }
       }
     }
 
@@ -136,6 +194,7 @@ router.post('/inscribe', async (req, res) => {
       to: destination,
       contentType,
       dataSize: data.length,
+      batchInfo: needsBatching ? { totalBatches: batchCount, transactionsPerBatch: MAX_MEMPOOL_CHAIN } : null,
     });
   } catch (error) {
     console.error('Inscription error:', error);

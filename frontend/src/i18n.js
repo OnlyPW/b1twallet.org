@@ -227,7 +227,10 @@ const resources = {
         error: 'Error: {{message}}',
         feeInfoTitle: 'Fee Information',
         feeInfoPlatform: 'Platform fee: 0.1 B1T per transaction in the inscription chain.',
-        feeInfoMiner: 'Minimum miner fee: 0.02 B1T per transaction to ensure block inclusion.'
+        feeInfoMiner: 'Minimum miner fee: 0.02 B1T per transaction to ensure block inclusion.',
+        estTime: 'Est. Time',
+        batches: 'Batches',
+        batchInfo: 'Large inscriptions are split into batches with block confirmations between them.'
       },
       mine: {
         title: 'Easy Rabb1t Miner (Lite)',
@@ -538,7 +541,10 @@ const resources = {
         error: 'Fehler: {{message}}',
         feeInfoTitle: 'Gebühren-Info',
         feeInfoPlatform: 'Plattform-Gebühr: 0,1 B1T pro Transaktion in der Inscription-Kette.',
-        feeInfoMiner: 'Minimale Miner-Gebühr: 0,02 B1T pro Transaktion, damit Blöcke diese aufnehmen.'
+        feeInfoMiner: 'Minimale Miner-Gebühr: 0,02 B1T pro Transaktion, damit Blöcke diese aufnehmen.',
+        estTime: 'Geschätzte Zeit',
+        batches: 'Batches',
+        batchInfo: 'Große Inscriptions werden in Batches aufgeteilt mit Block-Bestätigungen dazwischen.'
       },
       mine: {
         title: 'Easy Rabb1t Miner (Lite)',

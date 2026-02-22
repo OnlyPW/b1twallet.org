@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Image, FileText, Upload, X, CheckCircle, Loader, Rocket, Coins, ArrowRightLeft, Code, Info, AlertTriangle } from 'lucide-react';
+import { Image, FileText, Upload, X, CheckCircle, Loader, Rocket, Coins, ArrowRightLeft, Code, Info, AlertTriangle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { walletApi } from '../services/api';
 import useWalletStore from '../store/walletStore';
@@ -12,6 +12,18 @@ const MAX_FILE_SIZE = 400 * 1024;
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+const MAX_MEMPOOL_CHAIN = 20;
+const AVG_BLOCK_TIME_SECONDS = 60;
+
+function estimateTime(transactions) {
+  if (!transactions || transactions <= 0) return null;
+  if (transactions <= MAX_MEMPOOL_CHAIN) return { batches: 1, waitTime: 0, totalMinutes: 0 };
+  const batches = Math.ceil(transactions / MAX_MEMPOOL_CHAIN);
+  const waitTime = (batches - 1) * AVG_BLOCK_TIME_SECONDS;
+  const totalMinutes = Math.round(waitTime / 60);
+  return { batches, waitTime, totalMinutes, totalSeconds: waitTime };
 }
 
 function arrayBufferToHex(buffer) {
@@ -611,6 +623,23 @@ export default function Inscribe() {
                     <span className="ml-2 font-mono text-b1t-orange font-semibold">{estimate.estimatedCostB1T?.toFixed(2)} B1T</span>
                   </div>
                 </div>
+                {(() => {
+                  const timeEst = estimateTime(estimate.estimatedTransactions);
+                  if (!timeEst || timeEst.batches <= 1) return null;
+                  return (
+                    <div className="mt-3 pt-3 border-t border-dark-300">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock size={16} className="text-b1t-orange" />
+                        <span className="text-gray-400">{t('inscribe.estTime')}:</span>
+                        <span className="font-mono text-white font-semibold">
+                          ~{timeEst.totalMinutes > 0 ? `${timeEst.totalMinutes} min` : `${timeEst.totalSeconds} sec`}
+                        </span>
+                        <span className="text-xs text-gray-500">({timeEst.batches} {t('inscribe.batches')})</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{t('inscribe.batchInfo')}</p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

@@ -84,6 +84,69 @@ export const walletApi = {
   inscribeOrdinal: (data) =>
     api.post('/api/ordinals/inscribe', data, { timeout: 300000 }),
 
+  inscribeOrdinalStream: (data, onEvent) => {
+    return new Promise((resolve, reject) => {
+      const body = JSON.stringify({ ...data, stream: true });
+      let finalResult = null;
+      fetch(`${API_URL}/api/ordinals/inscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response.json().then((err) => reject(new Error(err.error || 'Request failed')));
+          }
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          const processEvents = () => {
+            reader.read().then(({ done, value }) => {
+              if (done) {
+                if (finalResult) {
+                  resolve(finalResult);
+                } else {
+                  resolve({ success: true });
+                }
+                return;
+              }
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              let currentEvent = '';
+              for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                  currentEvent = line.slice(7).trim();
+                } else if (line.startsWith('data: ') && currentEvent) {
+                  try {
+                    const eventData = JSON.parse(line.slice(6));
+                    onEvent(currentEvent, eventData);
+                    if (currentEvent === 'complete') {
+                      finalResult = eventData;
+                    }
+                    if (currentEvent === 'error') {
+                      reject(new Error(eventData.error || 'Unknown error'));
+                      return;
+                    }
+                  } catch (e) {
+                    console.warn('SSE parse error:', e);
+                  }
+                }
+              }
+              processEvents();
+            }).catch(err => {
+              console.error('Reader error:', err);
+              reject(err);
+            });
+          };
+          processEvents();
+        })
+        .catch(reject);
+    });
+  },
+
   estimateInscription: (dataSize) =>
     api.post('/api/ordinals/estimate', { dataSize }),
 
@@ -95,6 +158,12 @@ export const walletApi = {
 
   transferInscription: (data) =>
     api.post('/api/ordinals/transfer', data, { timeout: 120000 }),
+
+  syncOrdinals: () =>
+    api.post('/api/ordinals/sync'),
+
+  syncAddressOrdinals: (address) =>
+    api.post(`/api/ordinals/sync/${address}`),
 
   // UTXO Consolidation
   consolidateUtxos: (data) =>

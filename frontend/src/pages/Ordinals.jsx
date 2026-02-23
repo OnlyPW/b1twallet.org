@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { walletApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import useWalletStore from '../store/walletStore';
-import { Image, PenTool, Send, X, Loader, ExternalLink, Copy } from 'lucide-react';
+import { Image, PenTool, Send, X, Loader, ExternalLink, Copy, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Ordinals() {
@@ -13,6 +13,7 @@ export default function Ordinals() {
   const { addresses, currentAddressIndex } = useWalletStore();
   const [inscriptions, setInscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [selected, setSelected] = useState(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferTo, setTransferTo] = useState('');
@@ -32,18 +33,33 @@ export default function Ordinals() {
           const res = await walletApi.getInscriptions(addr.address);
           if (res.success && res.inscriptions) {
             for (const insc of res.inscriptions) {
-              if (!seen.has(insc.inscription_txid)) {
-                seen.add(insc.inscription_txid);
+              const key = insc.ord_id || insc.inscription_txid;
+              if (!seen.has(key)) {
+                seen.add(key);
                 allInsc.push(insc);
               }
             }
           }
         } catch {}
       }
-      allInsc.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+      allInsc.sort((a, b) => ((b.created_at || b.synced_at || 0) - (a.created_at || a.synced_at || 0)));
       setInscriptions(allInsc);
     } catch {}
     setLoading(false);
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await walletApi.syncOrdinals();
+      if (res.success) {
+        toast.success(res.message || 'Sync complete');
+        loadInscriptions();
+      }
+    } catch (err) {
+      toast.error('Sync failed: ' + err.message);
+    }
+    setSyncing(false);
   };
 
   const handleTransfer = async () => {
@@ -94,6 +110,8 @@ export default function Ordinals() {
 
   const formatShort = (s) => s ? `${s.slice(0, 8)}...${s.slice(-6)}` : '';
 
+  const getTimestamp = (insc) => insc.created_at || insc.synced_at || 0;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[20vh]">
@@ -106,13 +124,24 @@ export default function Ordinals() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold">{t('ordinals.title')}</h3>
-        <Link
-          to="/inscribe"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-orange text-white text-sm hover:opacity-90 transition"
-        >
-          <PenTool size={14} />
-          {t('ordinals.createNew')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-300 text-gray-300 hover:text-white text-sm hover:bg-dark-200 transition disabled:opacity-50"
+            title="Sync ordinals from indexer"
+          >
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync'}
+          </button>
+          <Link
+            to="/inscribe"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-orange text-white text-sm hover:opacity-90 transition"
+          >
+            <PenTool size={14} />
+            {t('ordinals.createNew')}
+          </Link>
+        </div>
       </div>
 
       {inscriptions.length === 0 ? (
@@ -131,7 +160,7 @@ export default function Ordinals() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {inscriptions.map((insc, index) => (
             <motion.div
-              key={insc.inscription_txid}
+              key={insc.ord_id || insc.inscription_txid}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.05 }}
@@ -141,7 +170,7 @@ export default function Ordinals() {
               <div className="aspect-square bg-dark-300 rounded-lg overflow-hidden mb-3 flex items-center justify-center">
                 {insc.content_type?.startsWith('image/') ? (
                   <img
-                    src={walletApi.getInscriptionContentUrl(insc.inscription_txid)}
+                    src={walletApi.getInscriptionContentUrl(insc.ord_id || insc.inscription_txid)}
                     alt="Ordinal"
                     className="w-full h-full object-contain"
                     loading="lazy"
@@ -153,9 +182,14 @@ export default function Ordinals() {
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-mono text-gray-400 truncate">{formatShort(insc.inscription_txid)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-mono text-gray-400 truncate flex-1">{formatShort(insc.inscription_txid)}</p>
+                  {insc.source === 'received' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">received</span>
+                  )}
+                </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">{formatDate(insc.created_at)}</span>
+                  <span className="text-xs text-gray-500">{formatDate(getTimestamp(insc))}</span>
                   <span className="text-xs text-b1t-orange">{(insc.data_size / 1024).toFixed(1)} KB</span>
                 </div>
               </div>
@@ -192,7 +226,7 @@ export default function Ordinals() {
               <div className="bg-dark-300 rounded-lg overflow-hidden mb-4 flex items-center justify-center" style={{ minHeight: 200 }}>
                 {selected.content_type?.startsWith('image/') ? (
                   <img
-                    src={walletApi.getInscriptionContentUrl(selected.inscription_txid)}
+                    src={walletApi.getInscriptionContentUrl(selected.ord_id || selected.inscription_txid)}
                     alt="Ordinal"
                     className="max-w-full max-h-80 object-contain"
                   />
@@ -206,6 +240,17 @@ export default function Ordinals() {
 
               {/* Metadata */}
               <div className="space-y-2 text-sm mb-4">
+                {selected.ord_id && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Ord ID:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-white truncate max-w-[200px]">{selected.ord_id}</span>
+                      <button onClick={() => copyTxid(selected.ord_id)} className="text-gray-400 hover:text-white">
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">TXID:</span>
                   <div className="flex items-center gap-2">
@@ -227,14 +272,24 @@ export default function Ordinals() {
                   <span className="text-gray-400">{t('ordinals.owner')}:</span>
                   <span className="font-mono text-xs text-white">{formatShort(selected.to_address)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t('ordinals.transactions')}:</span>
-                  <span className="font-mono text-white">{selected.total_transactions}</span>
-                </div>
-                {selected.created_at && (
+                {selected.source && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Source:</span>
+                    <span className={`font-mono text-xs ${selected.source === 'received' ? 'text-blue-400' : 'text-green-400'}`}>
+                      {selected.source}
+                    </span>
+                  </div>
+                )}
+                {selected.total_transactions && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">{t('ordinals.transactions')}:</span>
+                    <span className="font-mono text-white">{selected.total_transactions}</span>
+                  </div>
+                )}
+                {getTimestamp(selected) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-400">{t('ordinals.date')}:</span>
-                    <span className="text-white">{new Date(selected.created_at * 1000).toLocaleString()}</span>
+                    <span className="text-white">{new Date(getTimestamp(selected) * 1000).toLocaleString()}</span>
                   </div>
                 )}
               </div>

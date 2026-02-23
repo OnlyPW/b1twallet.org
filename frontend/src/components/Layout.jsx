@@ -4,6 +4,7 @@ import { Wallet, Home, Send, Download, Menu, X, AlertTriangle, Pickaxe, PenTool,
 import { useState, useEffect } from 'react';
 import useWalletStore from '../store/walletStore';
 import { useTranslation } from 'react-i18next';
+import BlockHeightWidget from './BlockHeightWidget';
 
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -203,6 +204,8 @@ export default function Layout() {
           </div>
         </div>
       </footer>
+
+      <BlockHeightWidget />
     </div>
   );
 }

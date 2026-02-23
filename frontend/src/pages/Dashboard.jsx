@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wallet, Send, Download, RefreshCw, Eye, EyeOff, TrendingUp, Clock, Layers, Loader } from 'lucide-react';
+import { Wallet, Send, Download, RefreshCw, Eye, EyeOff, TrendingUp, Clock, Layers, Loader, Sparkles, X, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { walletApi, getIndexerStatus } from '../services/api';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,9 @@ export default function Dashboard() {
   const [utxoCount, setUtxoCount] = useState(0);
   const [consolidating, setConsolidating] = useState(false);
   const pendingInRef = useRef(new Map());
+  const prevOrdinalsCountRef = useRef(0);
+  const [newOrdinalsCount, setNewOrdinalsCount] = useState(0);
+  const [showOrdinalPopup, setShowOrdinalPopup] = useState(false);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -71,6 +74,47 @@ export default function Dashboard() {
       } catch {}
     }, 12000);
 
+    return () => clearInterval(id);
+  }, [isUnlocked, addresses]);
+
+  useEffect(() => {
+    if (!isUnlocked || !(addresses || []).length) return;
+
+    const checkNewOrdinals = async () => {
+      try {
+        const allInsc = [];
+        const seen = new Set();
+        for (const addr of addresses) {
+          try {
+            const res = await walletApi.getInscriptions(addr.address);
+            if (res.success && res.inscriptions) {
+              for (const insc of res.inscriptions) {
+                const key = insc.ord_id || insc.inscription_txid;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  allInsc.push(insc);
+                }
+              }
+            }
+          } catch {}
+        }
+        
+        const currentCount = allInsc.length;
+        const prevCount = prevOrdinalsCountRef.current;
+        
+        if (prevCount > 0 && currentCount > prevCount) {
+          const newCount = currentCount - prevCount;
+          setNewOrdinalsCount(newCount);
+          setShowOrdinalPopup(true);
+        }
+        
+        prevOrdinalsCountRef.current = currentCount;
+      } catch {}
+    };
+
+    const id = setInterval(checkNewOrdinals, 45000);
+    checkNewOrdinals();
+    
     return () => clearInterval(id);
   }, [isUnlocked, addresses]);
 
@@ -279,6 +323,57 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* New Ordinals Discovered Popup */}
+      <AnimatePresence>
+        {showOrdinalPopup && newOrdinalsCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="card bg-gradient-to-r from-purple-600/20 to-b1t-orange/20 border-purple-500/50"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-purple-500/30">
+                  <Sparkles size={24} className="text-purple-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white flex items-center gap-2">
+                    {t('ordinals.newDiscovered')}
+                  </p>
+                  <p className="text-sm text-gray-300">
+                    {t('ordinals.newDiscoveredDesc', { count: newOrdinalsCount })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setActiveTab('ordinals');
+                    setShowOrdinalPopup(false);
+                    setNewOrdinalsCount(0);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/30 hover:bg-purple-500/50 text-white text-sm transition"
+                >
+                  {t('ordinals.viewOrdinals')}
+                  <ArrowRight size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    setShowOrdinalPopup(false);
+                    setNewOrdinalsCount(0);
+                  }}
+                  className="p-2 rounded-lg hover:bg-dark-200 text-gray-400 hover:text-white transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}

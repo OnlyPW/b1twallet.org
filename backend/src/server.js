@@ -10,6 +10,7 @@ import ordinalsRoutes from './routes/ordinals.js';
 import rpcClient from './services/rpcClient.js';
 import { initSchema, getTipHeight } from './services/db.js';
 import { startIndexer } from './indexer/indexer.js';
+import { startSync as startOrdinalSync } from './services/ordinalSyncService.js';
 
 dotenv.config();
 
@@ -103,6 +104,23 @@ app.get('/api/test-connection', async (req, res) => {
   }
 });
 
+// Blockchain Status (Block Height)
+app.get('/api/blockchain/status', async (req, res) => {
+  try {
+    const info = await rpcClient.call('getblockchaininfo');
+    res.json({
+      success: true,
+      blocks: info.blocks,
+      headers: info.headers,
+      chain: info.chain,
+      difficulty: info.difficulty,
+      mediantime: info.mediantime
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Indexer Status
 app.get('/api/indexer-status', async (req, res) => {
   try {
@@ -161,6 +179,7 @@ app.listen(PORT, '0.0.0.0', () => {
       if (enabled) {
         await initSchema();
         await startIndexer();
+        startOrdinalSync();
       } else {
         console.log('⏸ Indexer deaktiviert. Überspringe DB-Init und Sync.');
       }

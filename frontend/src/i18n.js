@@ -8,6 +8,7 @@ const resources = {
       nav: { home: 'Home', dashboard: 'Dashboard', send: 'Send', receive: 'Receive', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Addresses', inscribe: 'Inscribe', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Lock Wallet', refresh: 'Refresh', copy: 'Copy', dismiss: 'Dismiss' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
+      blockHeight: { title: 'Block Height', error: 'Offline', lastUpdate: 'Updated', newBlock: 'New Block Found!', blockNumber: 'Block' },
       dashboard: { title: 'Dashboard', welcome: 'Welcome back!' },
       indexer: { label: 'Indexer', status: { disabled: 'Disabled', syncing: 'Syncing', caught_up: 'Synchronized', unknown: 'Unknown' }, dbTip: 'Tip (DB)', chainTip: 'Chain', currentHeight: 'Current Block Height' },
       balance: { 
@@ -142,7 +143,11 @@ const resources = {
         sending: 'Sending...',
         confirmTransfer: 'Send',
         transferSuccess: 'Ordinal sent! TXID: {{txid}}',
-        transferError: 'Error: {{message}}'
+        transferError: 'Error: {{message}}',
+        newDiscovered: 'New Ordinal Discovered!',
+        newDiscoveredDesc: '{{count}} new ordinal(s) were found for your wallet.',
+        viewOrdinals: 'View Ordinals',
+        dismiss: 'Dismiss'
       },
       consolidate: {
         hint: '{{count}} UTXOs detected',
@@ -230,7 +235,25 @@ const resources = {
         feeInfoMiner: 'Minimum miner fee: 0.02 B1T per transaction to ensure block inclusion.',
         estTime: 'Est. Time',
         batches: 'Batches',
-        batchInfo: 'Large inscriptions are split into batches with block confirmations between them.'
+        batchInfo: 'Large inscriptions are split into batches with block confirmations between them.',
+        preparing: 'Preparing inscription...',
+        dontClose: 'Do not close this window!',
+        dontCloseDesc: 'Closing the browser window will interrupt the inscription process.',
+        waitingForBlock: 'Waiting for block confirmation...',
+        waitingForTx: 'Waiting for TX',
+        avgBlockTime: 'Average block time: ~1 minute',
+        processingBatch: 'Processing batch {{current}} of {{total}}...',
+        broadcastingTx: 'Broadcasting transaction {{current}} of {{total}}...',
+        transactions: 'Transactions',
+        batch: 'Batch',
+        tx: 'Tx',
+        totalTxLabel: 'Total Transactions',
+        totalBatchesLabel: 'Total Batches',
+        resultTxid: 'Inscription TXID',
+        resultTxCount: 'Transactions',
+        resultContentType: 'Content Type',
+        resultDataSize: 'Data size',
+        showAllTx: 'Show all transactions'
       },
       mine: {
         title: 'Easy Rabb1t Miner (Lite)',
@@ -322,6 +345,7 @@ const resources = {
       nav: { home: 'Home', dashboard: 'Dashboard', send: 'Senden', receive: 'Empfangen', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Adressen', inscribe: 'Inscribe', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Wallet sperren', refresh: 'Aktualisieren', copy: 'Kopieren', dismiss: 'Ausblenden' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
+      blockHeight: { title: 'Blockhöhe', error: 'Offline', lastUpdate: 'Aktualisiert', newBlock: 'Neuer Block gefunden!', blockNumber: 'Block' },
       dashboard: { title: 'Dashboard', welcome: 'Willkommen zurück!' },
       indexer: { label: 'Indexer', status: { disabled: 'Deaktiviert', syncing: 'Synchronisiere', caught_up: 'Synchron', unknown: 'Unbekannt' }, dbTip: 'Tip (DB)', chainTip: 'Chain', currentHeight: 'Aktuelle Blockhöhe' },
       balance: { 
@@ -456,7 +480,11 @@ const resources = {
         sending: 'Wird gesendet...',
         confirmTransfer: 'Senden',
         transferSuccess: 'Ordinal gesendet! TXID: {{txid}}',
-        transferError: 'Fehler: {{message}}'
+        transferError: 'Fehler: {{message}}',
+        newDiscovered: 'Neuer Ordinal entdeckt!',
+        newDiscoveredDesc: '{{count}} neue Ordinal(s) wurden für deine Wallet gefunden.',
+        viewOrdinals: 'Ordinals anzeigen',
+        dismiss: 'Ausblenden'
       },
       consolidate: {
         hint: '{{count}} UTXOs erkannt',
@@ -544,7 +572,25 @@ const resources = {
         feeInfoMiner: 'Minimale Miner-Gebühr: 0,02 B1T pro Transaktion, damit Blöcke diese aufnehmen.',
         estTime: 'Geschätzte Zeit',
         batches: 'Batches',
-        batchInfo: 'Große Inscriptions werden in Batches aufgeteilt mit Block-Bestätigungen dazwischen.'
+        batchInfo: 'Große Inscriptions werden in Batches aufgeteilt mit Block-Bestätigungen dazwischen.',
+        preparing: 'Bereite Inscription vor...',
+        dontClose: 'Fenster nicht schliessen!',
+        dontCloseDesc: 'Das Schliessen des Browser-Fensters unterbricht den Inscription-Prozess.',
+        waitingForBlock: 'Warte auf Block-Bestätigung...',
+        waitingForTx: 'Warte auf TX',
+        avgBlockTime: 'Durchschnittliche Blockzeit: ~1 Minute',
+        processingBatch: 'Verarbeite Batch {{current}} von {{total}}...',
+        broadcastingTx: 'Sende Transaktion {{current}} von {{total}}...',
+        transactions: 'Transaktionen',
+        batch: 'Batch',
+        tx: 'Tx',
+        totalTxLabel: 'Total Transaktionen',
+        totalBatchesLabel: 'Total Batches',
+        resultTxid: 'Inscription TXID',
+        resultTxCount: 'Transaktionen',
+        resultContentType: 'Content-Type',
+        resultDataSize: 'Datengrösse',
+        showAllTx: 'Alle Transaktionen anzeigen'
       },
       mine: {
         title: 'Easy Rabb1t Miner (Lite)',
@@ -635,6 +681,7 @@ const resources = {
       nav: { home: 'Accueil', dashboard: 'Tableau de bord', send: 'Envoyer', receive: 'Recevoir', explorer: 'Explorateur', mempool: 'Mempool', addresses: 'Adresses', inscribe: 'Inscrire', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Verrouiller le portefeuille', refresh: 'Actualiser' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
+      blockHeight: { title: 'Hauteur de bloc', error: 'Hors ligne', lastUpdate: 'Mis à jour', newBlock: 'Nouveau bloc trouvé!', blockNumber: 'Bloc' },
       dashboard: { title: 'Tableau de bord', welcome: 'Bon retour !' },
       indexer: { label: 'Indexeur', status: { disabled: 'Désactivé', syncing: 'Synchronisation', caught_up: 'Synchronisé', unknown: 'Inconnu' }, dbTip: 'Tip (DB)', chainTip: 'Chaîne', currentHeight: 'Hauteur de bloc actuelle' },
       balance: { total: 'Solde total' },
@@ -660,7 +707,8 @@ const resources = {
         }
       },
       tokens: { title: 'Tokens', none: 'Aucun token trouvé', id: 'ID', standard: 'Standard', indexerUnavailable: 'Indexeur Ordinals indisponible', indexerUnavailableDesc: 'Les données des tokens ne peuvent être affichées que lorsque l\'indexeur Ordinals est en cours d\'exécution et synchronisé. Vous pouvez déjà inscrire des Ordinals et des Tokens.', loadError: 'Erreur lors du chargement des données de token. Veuillez réessayer plus tard.', inscribeNow: 'Inscrire maintenant' },
-      inscribe: { title: 'Inscrire', subtitle: 'Inscrire des Ordinals & Tokens sur la blockchain B1T', tabImage: 'Image / Ordinal', tabToken: 'Token / Texte', dropzone: 'Glissez une image ici ou cliquez', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Aperçu', original: 'Original', compressed: 'Compressé (WebP)', quality: 'Qualité', qualityLow: 'Petit / Bas', qualityHigh: 'Grand / Haut', formMode: 'Formulaire', rawMode: 'Manuel (JSON)', operation: 'Opération', opDeploy: 'Déployer', opDeployDesc: 'Créer un nouveau token', opMint: 'Mint', opMintDesc: 'Frapper des tokens', opTransfer: 'Transfert', opTransferDesc: 'Transférer des tokens', ticker: 'Ticker du token', settings: 'Paramètres', fromAddress: 'Adresse d\'envoi', toAddress: 'Adresse de destination (optionnel)', estimatedCost: 'Coût estimé', success: 'Inscription réussie !', walletLocked: 'Portefeuille verrouillé' },
+      ordinals: { title: 'Ordinals', none: 'Aucune inscription trouvée', createNew: 'Nouvelle Inscription', createFirst: 'Créer votre première inscription', details: 'Détails de l\'Inscription', contentType: 'Type de Contenu', dataSize: 'Taille des Données', owner: 'Propriétaire', transactions: 'Transactions', date: 'Date', transfer: 'Envoyer Ordinal', transferTo: 'Envoyer à l\'adresse', transferPlaceholder: 'Entrez l\'adresse B1T', cancel: 'Annuler', sending: 'Envoi...', confirmTransfer: 'Envoyer', transferSuccess: 'Ordinal envoyé! TXID: {{txid}}', transferError: 'Erreur: {{message}}', newDiscovered: 'Nouvel Ordinal Découvert!', newDiscoveredDesc: '{{count}} nouveau(x) ordinal(s) ont été trouvés pour votre portefeuille.', viewOrdinals: 'Voir les Ordinals', dismiss: 'Fermer' },
+      inscribe: { title: 'Inscrire', subtitle: 'Inscrire des Ordinals & Tokens sur la blockchain B1T', tabImage: 'Image / Ordinal', tabToken: 'Token / Texte', dropzone: 'Glissez une image ici ou cliquez', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Aperçu', original: 'Original', compressed: 'Compressé (WebP)', quality: 'Qualité', qualityLow: 'Petit / Bas', qualityHigh: 'Grand / Haut', formMode: 'Formulaire', rawMode: 'Manuel (JSON)', operation: 'Opération', opDeploy: 'Déployer', opDeployDesc: 'Créer un nouveau token', opMint: 'Mint', opMintDesc: 'Frapper des tokens', opTransfer: 'Transfert', opTransferDesc: 'Transférer des tokens', ticker: 'Ticker du token', settings: 'Paramètres', fromAddress: 'Adresse d\'envoi', toAddress: 'Adresse de destination (optionnel)', estimatedCost: 'Coût estimé', success: 'Inscription réussie !', walletLocked: 'Portefeuille verrouillé', preparing: 'Préparation de l\'inscription...', dontClose: 'Ne fermez pas cette fenêtre !', dontCloseDesc: 'La fermeture de la fenêtre interrompra le processus d\'inscription.', waitingForBlock: 'En attente de confirmation de bloc...', waitingForTx: 'En attente de TX', avgBlockTime: 'Temps de bloc moyen: ~1 minute', processingBatch: 'Traitement du lot {{current}} sur {{total}}...', broadcastingTx: 'Diffusion de la transaction {{current}} sur {{total}}...', transactions: 'Transactions', batch: 'Lot', tx: 'Tx', totalTxLabel: 'Total Transactions', totalBatchesLabel: 'Total Lots', resultTxid: 'TXID d\'inscription', resultTxCount: 'Transactions', resultContentType: 'Type de contenu', resultDataSize: 'Taille des données', showAllTx: 'Afficher toutes les transactions' },
       mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Minez des RABB1TS en trouvant des IDs de transaction commençant par des zéros', liteNotice: 'Version web avec performances limitées', liteNoticeDesc: 'Ce mineur basé sur navigateur utilise des appels RPC et est limité par la latence réseau. Pour un hashrate maximum, un mineur desktop natif (bientôt disponible) sera beaucoup plus rapide.', walletLocked: 'Portefeuille verrouillé', walletLockedDesc: 'Veuillez déverrouiller votre portefeuille pour accéder au Rabb1ts Miner.', config: 'Configuration du minage', selectUtxo: 'Sélectionner un UTXO', refresh: 'Actualiser', startMining: 'Démarrer le minage ({{count}} cœurs)', stopMiner: 'Arrêter le mineur', statusMining: 'MINAGE', statusIdle: 'PRÊT' },
       mempool: { title: 'Mempool', status: 'Statut', refresh: 'Actualiser', loading: 'Chargement...', size: 'Taille', bytes: 'Octets', usage: 'Utilisation', minFee: 'Frais min', txids: 'TxIDs', none: 'Aucune transaction dans le mempool.', raw: 'Vue RAW', loadingTx: 'Chargement de la transaction...', selectPrompt: 'Sélectionnez une TXID à gauche pour voir les détails.' }
     }
@@ -670,6 +718,7 @@ const resources = {
       nav: { home: 'Домой', dashboard: 'Панель', send: 'Отправить', receive: 'Получить', explorer: 'Обозреватель', mempool: 'Мемпул', addresses: 'Адреса', inscribe: 'Инскрипция', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Заблокировать кошелёк', refresh: 'Обновить' },
       footer: { docs: 'Документация', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Некастодиально и с открытым исходным кодом.' },
+      blockHeight: { title: 'Высота блока', error: 'Офлайн', lastUpdate: 'Обновлено', newBlock: 'Найден новый блок!', blockNumber: 'Блок' },
       dashboard: { title: 'Панель', welcome: 'С возвращением!' },
       indexer: { label: 'Индексатор', status: { disabled: 'Отключено', syncing: 'Синхронизация', caught_up: 'Синхронизировано', unknown: 'Неизвестно' }, dbTip: 'Tip (DB)', chainTip: 'Цепь', currentHeight: 'Текущая высота блока' },
       balance: { total: 'Общий баланс' },
@@ -688,7 +737,8 @@ const resources = {
         info: { title: 'Почему B1T Wallet?', desc: 'B1T Wallet — полностью интегрированное решение для блокчейна B1T с родной поддержкой Ordinals. Управляйте монетами B1T и Ordinals в современной и удобной оболочке — без компромиссов в безопасности и самостоятельности.', phase: '🔥 Фаза 1 уже запущена! Функции Ordinals появятся в фазах 2–4.' }
       },
       tokens: { title: 'Токены', none: 'Токены не найдены', id: 'ID', standard: 'Стандарт', indexerUnavailable: 'Индексатор Ordinals недоступен', indexerUnavailableDesc: 'Данные о токенах будут доступны после запуска и синхронизации индексатора Ordinals. Вы уже можете создавать инскрипции.', loadError: 'Ошибка загрузки данных о токенах. Попробуйте позже.', inscribeNow: 'Создать инскрипцию' },
-      inscribe: { title: 'Инскрипция', subtitle: 'Создание Ordinals & Tokens на блокчейне B1T', tabImage: 'Изображение / Ordinal', tabToken: 'Токен / Текст', dropzone: 'Перетащите изображение сюда или нажмите', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Предпросмотр', original: 'Оригинал', compressed: 'Сжато (WebP)', quality: 'Качество', qualityLow: 'Малый / Низкий', qualityHigh: 'Большой / Высокий', formMode: 'Форма', rawMode: 'Вручную (JSON)', operation: 'Операция', opDeploy: 'Создать', opDeployDesc: 'Создать новый токен', opMint: 'Mint', opMintDesc: 'Чеканить токены', opTransfer: 'Перевод', opTransferDesc: 'Перевести токены', ticker: 'Тикер токена', settings: 'Настройки', fromAddress: 'Адрес отправителя', toAddress: 'Адрес получателя (необязательно)', estimatedCost: 'Примерная стоимость', success: 'Инскрипция успешна!', walletLocked: 'Кошелёк заблокирован' },
+      ordinals: { title: 'Ordinals', none: 'Инскрипций не найдено', createNew: 'Новая Инскрипция', createFirst: 'Создайте свою первую инскрипцию', details: 'Детали Инскрипции', contentType: 'Тип Контента', dataSize: 'Размер Данных', owner: 'Владелец', transactions: 'Транзакции', date: 'Дата', transfer: 'Отправить Ordinal', transferTo: 'Отправить на адрес', transferPlaceholder: 'Введите B1T адрес', cancel: 'Отмена', sending: 'Отправка...', confirmTransfer: 'Отправить', transferSuccess: 'Ordinal отправлен! TXID: {{txid}}', transferError: 'Ошибка: {{message}}', newDiscovered: 'Новый Ordinal Обнаружен!', newDiscoveredDesc: '{{count}} новых ordinal(s) найдено для вашего кошелька.', viewOrdinals: 'Смотреть Ordinals', dismiss: 'Скрыть' },
+      inscribe: { title: 'Инскрипция', subtitle: 'Создание Ordinals & Tokens на блокчейне B1T', tabImage: 'Изображение / Ordinal', tabToken: 'Токен / Текст', dropzone: 'Перетащите изображение сюда или нажмите', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Предпросмотр', original: 'Оригинал', compressed: 'Сжато (WebP)', quality: 'Качество', qualityLow: 'Малый / Низкий', qualityHigh: 'Большой / Высокий', formMode: 'Форма', rawMode: 'Вручную (JSON)', operation: 'Операция', opDeploy: 'Создать', opDeployDesc: 'Создать новый токен', opMint: 'Mint', opMintDesc: 'Чеканить токены', opTransfer: 'Перевод', opTransferDesc: 'Перевести токены', ticker: 'Тикер токена', settings: 'Настройки', fromAddress: 'Адрес отправителя', toAddress: 'Адрес получателя (необязательно)', estimatedCost: 'Примерная стоимость', success: 'Инскрипция успешна!', walletLocked: 'Кошелёк заблокирован', preparing: 'Подготовка инскрипции...', dontClose: 'Не закрывайте это окно!', dontCloseDesc: 'Закрытие окна прервёт процесс инскрипции.', waitingForBlock: 'Ожидание подтверждения блока...', waitingForTx: 'Ожидание TX', avgBlockTime: 'Среднее время блока: ~1 минута', processingBatch: 'Обработка пакета {{current}} из {{total}}...', broadcastingTx: 'Отправка транзакции {{current}} из {{total}}...', transactions: 'Транзакции', batch: 'Пакет', tx: 'Tx', totalTxLabel: 'Всего транзакций', totalBatchesLabel: 'Всего пакетов', resultTxid: 'TXID инскрипции', resultTxCount: 'Транзакции', resultContentType: 'Тип контента', resultDataSize: 'Размер данных', showAllTx: 'Показать все транзакции' },
       mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Майните RABB1TS, находя ID транзакций, начинающихся с нулей', liteNotice: 'Веб-версия с ограниченной производительностью', liteNoticeDesc: 'Этот браузерный майнер использует RPC-вызовы и ограничен сетевой задержкой. Для максимального хешрейта нативный десктопный майнер (скоро) будет намного быстрее.', walletLocked: 'Кошелёк заблокирован', walletLockedDesc: 'Пожалуйста, разблокируйте кошелёк для доступа к Rabb1ts Miner.', config: 'Настройки майнинга', selectUtxo: 'Выбрать UTXO', refresh: 'Обновить', startMining: 'Начать майнинг ({{count}} ядер)', stopMiner: 'Остановить майнер', statusMining: 'МАЙНИНГ', statusIdle: 'ОЖИДАНИЕ' },
       mempool: { title: 'Мемпул', status: 'Статус', refresh: 'Обновить', loading: 'Загрузка...', size: 'Размер', bytes: 'Байт', usage: 'Использование', minFee: 'Мин комиссия', txids: 'TxIDs', none: 'Нет транзакций в мемпуле.', raw: 'RAW просмотр', loadingTx: 'Загрузка транзакции...', selectPrompt: 'Выберите TXID слева, чтобы увидеть детали.' }
     }
@@ -698,6 +748,7 @@ const resources = {
       nav: { home: '首页', dashboard: '仪表盘', send: '发送', receive: '接收', explorer: '区块浏览器', mempool: '内存池', addresses: '地址', inscribe: '铭文', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: '锁定钱包', refresh: '刷新' },
       footer: { docs: '文档', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. 去托管与开源。' },
+      blockHeight: { title: '区块高度', error: '离线', lastUpdate: '更新于', newBlock: '发现新区块！', blockNumber: '区块' },
       dashboard: { title: '仪表盘', welcome: '欢迎回来！' },
       indexer: { label: '索引器', status: { disabled: '已禁用', syncing: '同步中', caught_up: '已同步', unknown: '未知' }, dbTip: 'Tip (DB)', chainTip: '链', currentHeight: '当前区块高度' },
       balance: { total: '总余额' },
@@ -716,7 +767,8 @@ const resources = {
         info: { title: '为什么选择 B1T Wallet？', desc: 'B1T Wallet 是面向 B1T 区块链的完整解决方案，原生支持 Ordinals。以现代、易用的界面管理你的 B1T 资产与 Ordinals —— 安全与主权不妥协。', phase: '🔥 第 1 阶段已上线！Ordinals 功能将在第 2–4 阶段推出。' }
       },
       tokens: { title: '代币', none: '未找到代币', id: 'ID', standard: '标准', indexerUnavailable: 'Ordinals 索引器不可用', indexerUnavailableDesc: '只有在 Ordinals 索引器运行并同步后才能显示代币数据。您现在已可以铭刻 Ordinals 和代币。', loadError: '加载代币数据时出错。请稍后重试。', inscribeNow: '立即铭刻' },
-      inscribe: { title: '铭文', subtitle: '在 B1T 区块链上铭刻 Ordinals 和代币', tabImage: '图片 / Ordinal', tabToken: '代币 / 文本', dropzone: '拖拽图片到此或点击', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: '预览', original: '原始', compressed: '压缩 (WebP)', quality: '质量', formMode: '表单', rawMode: '手动 (JSON)', operation: '操作', opDeploy: '部署', opDeployDesc: '创建新代币', opMint: '铸造', opMintDesc: '铸造代币', opTransfer: '转移', opTransferDesc: '转移代币', ticker: '代币符号', settings: '设置', fromAddress: '发送地址', toAddress: '目标地址（可选）', estimatedCost: '预估费用', success: '铭刻成功！', walletLocked: '钱包已锁定' },
+      ordinals: { title: 'Ordinals', none: '暂无铭文', createNew: '新建铭文', createFirst: '创建您的第一个铭文', details: '铭文详情', contentType: '内容类型', dataSize: '数据大小', owner: '所有者', transactions: '交易', date: '日期', transfer: '发送 Ordinal', transferTo: '发送至地址', transferPlaceholder: '输入 B1T 地址', cancel: '取消', sending: '发送中...', confirmTransfer: '发送', transferSuccess: 'Ordinal 已发送！TXID: {{txid}}', transferError: '错误: {{message}}', newDiscovered: '发现新 Ordinal！', newDiscoveredDesc: '为您的钱包发现了 {{count}} 个新 ordinal(s)。', viewOrdinals: '查看 Ordinals', dismiss: '关闭' },
+      inscribe: { title: '铭文', subtitle: '在 B1T 区块链上铭刻 Ordinals 和代币', tabImage: '图片 / Ordinal', tabToken: '代币 / 文本', dropzone: '拖拽图片到此或点击', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: '预览', original: '原始', compressed: '压缩 (WebP)', quality: '质量', formMode: '表单', rawMode: '手动 (JSON)', operation: '操作', opDeploy: '部署', opDeployDesc: '创建新代币', opMint: '铸造', opMintDesc: '铸造代币', opTransfer: '转移', opTransferDesc: '转移代币', ticker: '代币符号', settings: '设置', fromAddress: '发送地址', toAddress: '目标地址（可选）', estimatedCost: '预估费用', success: '铭刻成功！', walletLocked: '钱包已锁定', preparing: '正在准备铭刻...', dontClose: '请勿关闭此窗口！', dontCloseDesc: '关闭浏览器窗口将中断铭刻过程。', waitingForBlock: '等待区块确认...', waitingForTx: '等待 TX', avgBlockTime: '平均出块时间: ~1分钟', processingBatch: '正在处理批次 {{current}} / {{total}}...', broadcastingTx: '正在广播交易 {{current}} / {{total}}...', transactions: '交易', batch: '批次', tx: 'Tx', totalTxLabel: '总交易数', totalBatchesLabel: '总批次数', resultTxid: '铭刻 TXID', resultTxCount: '交易数', resultContentType: '内容类型', resultDataSize: '数据大小', showAllTx: '显示所有交易' },
       mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: '通过寻找以零开头的交易ID来挖矿RABB1TS代币', liteNotice: '性能受限的网页版', liteNoticeDesc: '这个基于浏览器的矿工使用RPC调用，受网络延迟限制。原生桌面矿工（即将推出）的哈希率会快得多。', walletLocked: '钱包已锁定', walletLockedDesc: '请解锁您的钱包以使用 Rabb1ts 矿工。', config: '挖矿配置', selectUtxo: '选择 UTXO', refresh: '刷新', startMining: '开始挖矿（{{count}} 核）', stopMiner: '停止矿工', statusMining: '挖矿中', statusIdle: '空闲' },
       mempool: { title: '内存池', status: '状态', refresh: '刷新', loading: '加载中...', size: '大小', bytes: '字节', usage: '使用量', minFee: '最低手续费', txids: 'TxIDs', none: '未找到内存池交易。', raw: 'RAW 视图', loadingTx: '正在加载交易...', selectPrompt: '在左侧选择一个 TXID 查看详情。' }
     }
@@ -726,6 +778,7 @@ const resources = {
       nav: { home: 'Trang chủ', dashboard: 'Bảng điều khiển', send: 'Gửi', receive: 'Nhận', explorer: 'Trình khám phá', mempool: 'Mempool', inscribe: 'Ghi chữ', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Khóa ví', refresh: 'Làm mới' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Không lưu ký & Mã nguồn mở.' },
+      blockHeight: { title: 'Độ cao khối', error: 'Ngoại tuyến', lastUpdate: 'Cập nhật', newBlock: 'Đã tìm thấy khối mới!', blockNumber: 'Khối' },
       dashboard: { title: 'Bảng điều khiển', welcome: 'Chào mừng trở lại!' },
       indexer: { label: 'Bộ lập chỉ mục', status: { disabled: 'Tắt', syncing: 'Đang đồng bộ', caught_up: 'Đã đồng bộ', unknown: 'Không rõ' }, dbTip: 'Tip (DB)', chainTip: 'Chuỗi', currentHeight: 'Độ cao khối hiện tại' },
       balance: { total: 'Tổng số dư' },
@@ -744,7 +797,8 @@ const resources = {
         info: { title: 'Vì sao chọn B1T Wallet?', desc: 'B1T Wallet là giải pháp tích hợp cho blockchain B1T với hỗ trợ Ordinals gốc. Quản lý B1T coin và Ordinals trong giao diện hiện đại, thân thiện — không thỏa hiệp về bảo mật và tự chủ.', phase: '🔥 Giai đoạn 1 đã hoạt động! Tính năng Ordinals sẽ ra mắt ở giai đoạn 2–4.' }
       },
       tokens: { title: 'Token', none: 'Không tìm thấy token', id: 'ID', standard: 'Tiêu chuẩn', indexerUnavailable: 'Ordinals Indexer không khả dụng', indexerUnavailableDesc: 'Dữ liệu token chỉ có thể hiển thị khi Ordinals Indexer đang chạy và đồng bộ. Bạn vẫn có thể tạo Ordinals và Tokens.', loadError: 'Lỗi khi tải dữ liệu token. Vui lòng thử lại sau.', inscribeNow: 'Ghi chữ ngay' },
-      inscribe: { title: 'Ghi chữ', subtitle: 'Ghi Ordinals & Tokens lên blockchain B1T', tabImage: 'Hình ảnh / Ordinal', tabToken: 'Token / Văn bản', dropzone: 'Kéo hình ảnh vào đây hoặc nhấp', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Xem trước', original: 'Gốc', compressed: 'Nén (WebP)', quality: 'Chất lượng', formMode: 'Biểu mẫu', rawMode: 'Thủ công (JSON)', operation: 'Thao tác', opDeploy: 'Triển khai', opDeployDesc: 'Tạo token mới', opMint: 'Mint', opMintDesc: 'Đúc token', opTransfer: 'Chuyển', opTransferDesc: 'Chuyển token', ticker: 'Mã token', settings: 'Cài đặt', success: 'Ghi chữ thành công!', walletLocked: 'Ví đã khóa' },
+      ordinals: { title: 'Ordinals', none: 'Chưa có inscription nào', createNew: 'Inscription Mới', createFirst: 'Tạo inscription đầu tiên', details: 'Chi tiết Inscription', contentType: 'Loại Nội dung', dataSize: 'Kích thước Dữ liệu', owner: 'Chủ sở hữu', transactions: 'Giao dịch', date: 'Ngày', transfer: 'Gửi Ordinal', transferTo: 'Gửi đến địa chỉ', transferPlaceholder: 'Nhập địa chỉ B1T', cancel: 'Hủy', sending: 'Đang gửi...', confirmTransfer: 'Gửi', transferSuccess: 'Ordinal đã gửi! TXID: {{txid}}', transferError: 'Lỗi: {{message}}', newDiscovered: 'Phát Hiện Ordinal Mới!', newDiscoveredDesc: '{{count}} ordinal(s) mới đã được tìm thấy cho ví của bạn.', viewOrdinals: 'Xem Ordinals', dismiss: 'Đóng' },
+      inscribe: { title: 'Ghi chữ', subtitle: 'Ghi Ordinals & Tokens lên blockchain B1T', tabImage: 'Hình ảnh / Ordinal', tabToken: 'Token / Văn bản', dropzone: 'Kéo hình ảnh vào đây hoặc nhấp', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Xem trước', original: 'Gốc', compressed: 'Nén (WebP)', quality: 'Chất lượng', formMode: 'Biểu mẫu', rawMode: 'Thủ công (JSON)', operation: 'Thao tác', opDeploy: 'Triển khai', opDeployDesc: 'Tạo token mới', opMint: 'Mint', opMintDesc: 'Đúc token', opTransfer: 'Chuyển', opTransferDesc: 'Chuyển token', ticker: 'Mã token', settings: 'Cài đặt', success: 'Ghi chữ thành công!', walletLocked: 'Ví đã khóa', preparing: 'Đang chuẩn bị ghi chữ...', dontClose: 'Không đóng cửa sổ này!', dontCloseDesc: 'Đóng cửa sổ sẽ ngắt quá trình ghi chữ.', waitingForBlock: 'Đang chờ xác nhận khối...', waitingForTx: 'Đang chờ TX', avgBlockTime: 'Thời gian khối trung bình: ~1 phút', processingBatch: 'Đang xử lý lô {{current}}/{{total}}...', broadcastingTx: 'Đang phát giao dịch {{current}}/{{total}}...', transactions: 'Giao dịch', batch: 'Lô', tx: 'Tx', totalTxLabel: 'Tổng giao dịch', totalBatchesLabel: 'Tổng lô', resultTxid: 'TXID ghi chữ', resultTxCount: 'Giao dịch', resultContentType: 'Loại nội dung', resultDataSize: 'Kích thước dữ liệu', showAllTx: 'Hiển thị tất cả giao dịch' },
       mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Đào RABB1TS bằng cách tìm ID giao dịch bắt đầu bằng số không', liteNotice: 'Phiên bản web với hiệu suất hạn chế', liteNoticeDesc: 'Trình đào dựa trên trình duyệt này sử dụng lệnh gọi RPC và bị giới hạn bởi độ trễ mạng. Để có tốc độ hash tối đa, trình đào máy tính để bàn gốc (sắp ra mắt) sẽ nhanh hơn nhiều.', walletLocked: 'Ví đã khóa', walletLockedDesc: 'Vui lòng mở khóa ví để truy cập Rabb1ts Miner.', config: 'Cấu hình đào', selectUtxo: 'Chọn UTXO', refresh: 'Làm mới', startMining: 'Bắt đầu đào ({{count}} lõi)', stopMiner: 'Dừng máy đào', statusMining: 'ĐANG ĐÀO', statusIdle: 'CHƯA BẮT ĐẦU' },
       mempool: { title: 'Mempool', status: 'Trạng thái', refresh: 'Làm mới', loading: 'Đang tải...', size: 'Kích thước', bytes: 'Byte', usage: 'Sử dụng', minFee: 'Phí tối thiểu', txids: 'TxIDs', none: 'Không có giao dịch trong mempool.', raw: 'RAW', loadingTx: 'Đang tải giao dịch...', selectPrompt: 'Chọn một TXID bên trái để xem chi tiết.' }
     }
@@ -754,6 +808,7 @@ const resources = {
       nav: { home: 'Beranda', dashboard: 'Dasbor', send: 'Kirim', receive: 'Terima', explorer: 'Explorer', mempool: 'Mempool', inscribe: 'Tulis', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Kunci Dompet', refresh: 'Segarkan' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
+      blockHeight: { title: 'Ketinggian Blok', error: 'Offline', lastUpdate: 'Diperbarui', newBlock: 'Blok Baru Ditemukan!', blockNumber: 'Blok' },
       dashboard: { title: 'Dasbor', welcome: 'Selamat datang kembali!' },
       indexer: { label: 'Pengindeks', status: { disabled: 'Dinonaktifkan', syncing: 'Sinkronisasi', caught_up: 'Tersinkron', unknown: 'Tidak diketahui' }, dbTip: 'Tip (DB)', chainTip: 'Rantai', currentHeight: 'Ketinggian Blok Saat Ini' },
       balance: { total: 'Saldo Total' },
@@ -772,7 +827,8 @@ const resources = {
         info: { title: 'Mengapa B1T Wallet?', desc: 'B1T Wallet adalah solusi terintegrasi untuk blockchain B1T dengan dukungan Ordinals native. Kelola koin B1T dan Ordinals dalam antarmuka modern dan ramah pengguna — tanpa kompromi keamanan dan kedaulatan.', phase: '🔥 Fase 1 sudah aktif! Fitur Ordinals akan hadir di Fase 2–4.' }
       },
       tokens: { title: 'Token', none: 'Tidak ada token ditemukan', id: 'ID', standard: 'Standar', indexerUnavailable: 'Ordinals Indexer tidak tersedia', indexerUnavailableDesc: 'Data token hanya dapat ditampilkan setelah Ordinals Indexer berjalan dan tersinkron. Anda sudah bisa membuat Ordinals dan Token.', loadError: 'Gagal memuat data token. Silakan coba lagi nanti.', inscribeNow: 'Tulis sekarang' },
-      inscribe: { title: 'Tulis', subtitle: 'Tulis Ordinals & Token di blockchain B1T', tabImage: 'Gambar / Ordinal', tabToken: 'Token / Teks', dropzone: 'Seret gambar ke sini atau klik', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Pratinjau', original: 'Asli', compressed: 'Terkompresi (WebP)', quality: 'Kualitas', formMode: 'Formulir', rawMode: 'Manual (JSON)', operation: 'Operasi', opDeploy: 'Deploy', opDeployDesc: 'Buat token baru', opMint: 'Mint', opMintDesc: 'Cetak token', opTransfer: 'Transfer', opTransferDesc: 'Transfer token', ticker: 'Ticker Token', settings: 'Pengaturan', success: 'Penulisan berhasil!', walletLocked: 'Dompet terkunci' },
+      ordinals: { title: 'Ordinals', none: 'Belum ada inscription', createNew: 'Inscription Baru', createFirst: 'Buat inscription pertama Anda', details: 'Detail Inscription', contentType: 'Tipe Konten', dataSize: 'Ukuran Data', owner: 'Pemilik', transactions: 'Transaksi', date: 'Tanggal', transfer: 'Kirim Ordinal', transferTo: 'Kirim ke alamat', transferPlaceholder: 'Masukkan alamat B1T', cancel: 'Batal', sending: 'Mengirim...', confirmTransfer: 'Kirim', transferSuccess: 'Ordinal terkirim! TXID: {{txid}}', transferError: 'Error: {{message}}', newDiscovered: 'Ordinal Baru Ditemukan!', newDiscoveredDesc: '{{count}} ordinal baru ditemukan untuk dompet Anda.', viewOrdinals: 'Lihat Ordinals', dismiss: 'Tutup' },
+      inscribe: { title: 'Tulis', subtitle: 'Tulis Ordinals & Token di blockchain B1T', tabImage: 'Gambar / Ordinal', tabToken: 'Token / Teks', dropzone: 'Seret gambar ke sini atau klik', dropzoneFormats: 'PNG, JPG, WebP, GIF', preview: 'Pratinjau', original: 'Asli', compressed: 'Terkompresi (WebP)', quality: 'Kualitas', formMode: 'Formulir', rawMode: 'Manual (JSON)', operation: 'Operasi', opDeploy: 'Deploy', opDeployDesc: 'Buat token baru', opMint: 'Mint', opMintDesc: 'Cetak token', opTransfer: 'Transfer', opTransferDesc: 'Transfer token', ticker: 'Ticker Token', settings: 'Pengaturan', success: 'Penulisan berhasil!', walletLocked: 'Dompet terkunci', preparing: 'Mempersiapkan penulisan...', dontClose: 'Jangan tutup jendela ini!', dontCloseDesc: 'Menutup jendela akan menghentikan proses penulisan.', waitingForBlock: 'Menunggu konfirmasi blok...', waitingForTx: 'Menunggu TX', avgBlockTime: 'Waktu blok rata-rata: ~1 menit', processingBatch: 'Memproses batch {{current}} dari {{total}}...', broadcastingTx: 'Menyiarkan transaksi {{current}} dari {{total}}...', transactions: 'Transaksi', batch: 'Batch', tx: 'Tx', totalTxLabel: 'Total Transaksi', totalBatchesLabel: 'Total Batch', resultTxid: 'TXID Penulisan', resultTxCount: 'Transaksi', resultContentType: 'Tipe Konten', resultDataSize: 'Ukuran Data', showAllTx: 'Tampilkan semua transaksi' },
       mine: { title: 'Easy Rabb1t Miner (Lite)', subtitle: 'Tambang RABB1TS dengan menemukan ID transaksi yang dimulai dengan nol', liteNotice: 'Versi web dengan kinerja terbatas', liteNoticeDesc: 'Penambang berbasis browser ini menggunakan panggilan RPC dan dibatasi oleh latensi jaringan. Untuk hashrate maksimum, penambang desktop native (segera hadir) akan jauh lebih cepat.', walletLocked: 'Dompet terkunci', walletLockedDesc: 'Silakan buka kunci dompet Anda untuk mengakses Rabb1ts Miner.', config: 'Konfigurasi penambangan', selectUtxo: 'Pilih UTXO', refresh: 'Segarkan', startMining: 'Mulai menambang ({{count}} inti)', stopMiner: 'Hentikan penambang', statusMining: 'MENAMBANG', statusIdle: 'SIAP' },
       mempool: { title: 'Mempool', status: 'Status', refresh: 'Segarkan', loading: 'Memuat...', size: 'Ukuran', bytes: 'Byte', usage: 'Penggunaan', minFee: 'Biaya minimum', txids: 'TxIDs', none: 'Tidak ada transaksi mempool.', raw: 'RAW', loadingTx: 'Memuat transaksi...', selectPrompt: 'Pilih TXID di kiri untuk melihat detail.' }
     }

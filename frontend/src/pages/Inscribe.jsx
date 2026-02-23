@@ -220,21 +220,44 @@ export default function Inscribe() {
 
     try {
       setLoading(true);
-      setProgress({ step: 0, total: 0, message: t('inscribe.creating') });
+      setProgress({ step: 'preparing', message: t('inscribe.preparing'), progress: 0, info: null });
       setResult(null);
 
-      const response = await walletApi.inscribeOrdinal({
-        wif,
-        senderAddress: selectedAddr.address,
-        toAddress: toAddress || selectedAddr.address,
-        contentType,
-        hexData,
-        mintAddress: mintAddress || undefined,
-        mintPrice: mintPrice ? parseInt(mintPrice) : undefined,
-      });
+      const response = await walletApi.inscribeOrdinalStream(
+        {
+          wif,
+          senderAddress: selectedAddr.address,
+          toAddress: toAddress || selectedAddr.address,
+          contentType,
+          hexData,
+          mintAddress: mintAddress || undefined,
+          mintPrice: mintPrice ? parseInt(mintPrice) : undefined,
+        },
+        (event, data) => {
+          if (event === 'progress') {
+            setProgress({
+              step: data.step,
+              message: data.message,
+              progress: data.progress,
+              currentTx: data.currentTx,
+              totalTx: data.totalTx,
+              batch: data.batch,
+              totalBatches: data.totalBatches,
+              waitingFor: data.waitingFor,
+            });
+          } else if (event === 'info') {
+            setProgress((prev) => ({ ...prev, info: data }));
+          }
+        }
+      );
 
       if (response.success) {
-        setProgress({ step: response.totalTransactions, total: response.totalTransactions, message: t('inscribe.done') });
+        setProgress((prev) => ({
+          step: 'complete',
+          message: t('inscribe.done'),
+          progress: 100,
+          info: response.info || prev.info,
+        }));
         setResult(response);
         toast.success(t('inscribe.successToast', { count: response.totalTransactions }));
       } else {
@@ -242,7 +265,7 @@ export default function Inscribe() {
       }
     } catch (error) {
       toast.error(t('inscribe.error', { message: error.message }));
-      setProgress(null);
+      setProgress((prev) => ({ ...prev, step: 'error', message: error.message }));
     } finally {
       setLoading(false);
     }
@@ -675,21 +698,97 @@ export default function Inscribe() {
         )}
 
         {/* Progress */}
-        {progress && loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Loader size={20} className="animate-spin text-b1t-orange" />
-                <p className="font-semibold">{progress.message}</p>
-              </div>
-              {progress.total > 0 && (
-                <div className="h-2 bg-dark-200 rounded overflow-hidden">
-                  <div
-                    className="h-2 bg-b1t-orange rounded transition-all duration-500"
-                    style={{ width: `${Math.round((progress.step / progress.total) * 100)}%` }}
-                  />
+        {progress && (loading || progress.step === 'complete') && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card border border-b1t-orange/30">
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-yellow-900/20 rounded-lg border border-yellow-500/30">
+                <AlertTriangle size={20} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-yellow-400">{t('inscribe.dontClose')}</p>
+                  <p className="text-xs text-yellow-300/70 mt-1">{t('inscribe.dontCloseDesc')}</p>
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  {progress.step === 'complete' ? (
+                    <CheckCircle size={20} className="text-green-400" />
+                  ) : (
+                    <Loader size={20} className="animate-spin text-b1t-orange" />
+                  )}
+                  <p className="font-semibold">{progress.message}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{progress.progress || 0}%</span>
+                    <span>
+                      {progress.info?.totalTransactions > 0 && (
+                        <span className="text-b1t-orange">{progress.info.totalTransactions} {t('inscribe.transactions')}</span>
+                      )}
+                      {progress.batch && progress.totalBatches && progress.totalBatches > 1 && (
+                        <span className="ml-2">• {t('inscribe.batch')} {progress.batch}/{progress.totalBatches}</span>
+                      )}
+                      {progress.currentTx && progress.totalTx && (
+                        <span className="ml-2">• {t('inscribe.tx')} {progress.currentTx}/{progress.totalTx}</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-dark-200 rounded overflow-hidden">
+                    <div
+                      className={`h-2 rounded transition-all duration-300 ${progress.step === 'complete' ? 'bg-green-500' : 'bg-b1t-orange'}`}
+                      style={{ width: `${progress.progress || 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {progress.info && (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {progress.info.totalTransactions > 0 && (
+                      <div className="p-2 bg-dark-700/50 rounded">
+                        <span className="text-gray-400">{t('inscribe.totalTxLabel')}:</span>
+                        <span className="ml-1 text-white font-mono">{progress.info.totalTransactions}</span>
+                      </div>
+                    )}
+                    {progress.info.batchCount > 1 && (
+                      <div className="p-2 bg-dark-700/50 rounded">
+                        <span className="text-gray-400">{t('inscribe.totalBatchesLabel')}:</span>
+                        <span className="ml-1 text-white font-mono">{progress.info.batchCount}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {progress.step === 'waiting' && (
+                  <div className="flex flex-col gap-2 text-sm text-gray-400 p-3 bg-dark-700/50 rounded border border-b1t-orange/20">
+                    <div className="flex items-center gap-2">
+                      <Clock size={16} className="text-b1t-orange animate-pulse" />
+                      <span className="font-semibold text-b1t-orange">{t('inscribe.waitingForBlock')}</span>
+                    </div>
+                    <div className="text-xs">
+                      <span className="text-gray-500">{t('inscribe.waitingForTx')}:</span>
+                      <span className="ml-1 font-mono text-gray-300 break-all">{progress.waitingFor}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {t('inscribe.avgBlockTime')}
+                    </div>
+                  </div>
+                )}
+
+                {progress.step === 'broadcast' && progress.currentTx && progress.totalTx && (
+                  <div className="flex items-center gap-2 text-sm p-2 bg-dark-700/50 rounded">
+                    <Rocket size={16} className="text-b1t-orange" />
+                    <span>{t('inscribe.broadcastingTx', { current: progress.currentTx, total: progress.totalTx })}</span>
+                  </div>
+                )}
+
+                {progress.step === 'batch' && progress.batch > 1 && (
+                  <div className="flex items-center gap-2 text-sm text-gray-400 p-2 bg-dark-700/50 rounded">
+                    <Clock size={16} className="text-b1t-orange" />
+                    <span>{t('inscribe.processingBatch', { current: progress.batch, total: progress.totalBatches })}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

@@ -76,22 +76,28 @@ export async function initSchema() {
       );
     `);
 
-    // Inscriptions (ordinals created through the wallet)
+    // Inscriptions (ordinals created through the wallet or received)
     await client.query(`
       CREATE TABLE IF NOT EXISTS inscriptions (
         inscription_txid TEXT PRIMARY KEY,
-        owner_address TEXT NOT NULL,
+        owner_address TEXT,
         to_address TEXT NOT NULL,
-        content_type TEXT NOT NULL,
-        data_size INTEGER NOT NULL,
+        content_type TEXT,
+        data_size INTEGER DEFAULT 0,
         content BYTEA,
         total_transactions INTEGER DEFAULT 1,
         created_at BIGINT,
         utxo_txid TEXT,
-        utxo_vout INTEGER DEFAULT 0
+        utxo_vout INTEGER DEFAULT 0,
+        source TEXT DEFAULT 'created',
+        synced_at BIGINT,
+        ord_id TEXT,
+        genesis_height INTEGER
       );
       CREATE INDEX IF NOT EXISTS idx_inscriptions_owner ON inscriptions(owner_address);
       CREATE INDEX IF NOT EXISTS idx_inscriptions_to ON inscriptions(to_address);
+      CREATE INDEX IF NOT EXISTS idx_inscriptions_ord_id ON inscriptions(ord_id);
+      CREATE INDEX IF NOT EXISTS idx_inscriptions_source ON inscriptions(source);
     `);
 
     await client.query('COMMIT');
@@ -188,7 +194,6 @@ export async function insertBlock({ height, hash, prev_hash, time, tx_count }, d
   });
 }
 
-/** Bulk-Insert für Indexer: viele Transaktionen in einem Statement (weniger DB-Roundtrips). */
 export async function insertTransactionsBulk(rows, dbClient = null) {
   if (!rows.length) return;
   return withClient(dbClient, async (client) => {
@@ -206,6 +211,52 @@ export async function insertTransactionsBulk(rows, dbClient = null) {
        ON CONFLICT (txid) DO NOTHING`,
       params
     );
+  });
+}
+
+export async function getWatchedAddresses(dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    const { rows } = await client.query(
+      `SELECT DISTINCT address FROM addresses WHERE balance_satoshi > 0 OR last_seen_height > 0`
+    );
+    return rows.map(r => r.address);
+  });
+}
+
+export async function upsertReceivedInscription({ ord_id, inscription_txid, to_address, content_type, data_size, genesis_height }, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    const now = Math.floor(Date.now() / 1000);
+    await client.query(
+      `INSERT INTO inscriptions (ord_id, inscription_txid, to_address, content_type, data_size, genesis_height, source, synced_at, owner_address)
+       VALUES ($1, $2, $3, $4, $5, $6, 'received', $7, $3)
+       ON CONFLICT (ord_id) DO UPDATE SET
+         to_address = EXCLUDED.to_address,
+         content_type = COALESCE(EXCLUDED.content_type, inscriptions.content_type),
+         data_size = COALESCE(EXCLUDED.data_size, inscriptions.data_size),
+         synced_at = EXCLUDED.synced_at,
+         owner_address = EXCLUDED.owner_address
+       WHERE inscriptions.source = 'received' OR inscriptions.source IS NULL`,
+      [ord_id, inscription_txid, to_address, content_type, data_size, genesis_height, now]
+    );
+  });
+}
+
+export async function updateInscriptionOwner(ord_id, newOwnerAddress, newUtxoTxid, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    await client.query(
+      `UPDATE inscriptions SET to_address = $1, owner_address = $1, utxo_txid = $2, synced_at = $3 WHERE ord_id = $4`,
+      [newOwnerAddress, newUtxoTxid, Math.floor(Date.now() / 1000), ord_id]
+    );
+  });
+}
+
+export async function getInscriptionByOrdId(ord_id, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    const { rows } = await client.query(
+      `SELECT * FROM inscriptions WHERE ord_id = $1`,
+      [ord_id]
+    );
+    return rows[0] || null;
   });
 }
 
@@ -244,4 +295,4 @@ export async function insertOutputsBulk(rows, dbClient = null) {
   });
 }
 
-export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock, insertTransactionsBulk, insertOutputsBulk };
+export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock, insertTransactionsBulk, insertOutputsBulk, getWatchedAddresses, upsertReceivedInscription, updateInscriptionOwner, getInscriptionByOrdId };

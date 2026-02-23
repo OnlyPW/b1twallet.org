@@ -24,9 +24,11 @@ function getScriptPubKey(address) {
   return bitcoin.address.toOutputScript(address, B1T_NETWORK).toString('hex');
 }
 
-async function waitForConfirmation(txid, pollInterval = CONFIRMATION_POLL_INTERVAL, timeout = CONFIRMATION_TIMEOUT) {
+async function waitForConfirmation(txid, pollInterval = CONFIRMATION_POLL_INTERVAL, timeout = CONFIRMATION_TIMEOUT, onCheck = null) {
   const startTime = Date.now();
+  let checkCount = 0;
   while (Date.now() - startTime < timeout) {
+    checkCount++;
     try {
       const tx = await rpcClient.call('getrawtransaction', [txid, true]);
       if (tx && tx.confirmations && tx.confirmations > 0) {
@@ -35,6 +37,7 @@ async function waitForConfirmation(txid, pollInterval = CONFIRMATION_POLL_INTERV
     } catch (e) {
       // TX might not be in mempool anymore or other error
     }
+    if (onCheck) onCheck(checkCount);
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
   throw new Error(`Timeout waiting for confirmation of ${txid}`);
@@ -46,7 +49,7 @@ async function waitForConfirmation(txid, pollInterval = CONFIRMATION_POLL_INTERV
  */
 router.post('/inscribe', async (req, res) => {
   try {
-    const { wif, senderAddress, toAddress, contentType, hexData, mintAddress, mintPrice } = req.body;
+    const { wif, senderAddress, toAddress, contentType, hexData, mintAddress, mintPrice, stream } = req.body;
 
     if (!wif || !senderAddress || !contentType || !hexData) {
       return res.status(400).json({ success: false, error: 'wif, senderAddress, contentType and hexData are required' });
@@ -65,10 +68,25 @@ router.post('/inscribe', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Data too large (max 400 KB)' });
     }
 
+    const useStream = stream === true;
+    if (useStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders?.();
+    }
+
+    const sendEvent = (event, data) => {
+      if (useStream) {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      }
+    };
+
     const destination = toAddress || senderAddress;
     const scriptHex = getScriptPubKey(senderAddress);
 
-    // Load UTXOs from DB indexer (primary) or RPC (fallback)
+    sendEvent('progress', { step: 'preparing', message: 'Lade UTXOs...', progress: 5 });
+
     const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
     let rawUtxos = [];
     if (useIndexer) {
@@ -87,19 +105,19 @@ router.post('/inscribe', async (req, res) => {
     }
 
     if (!rawUtxos || rawUtxos.length === 0) {
+      sendEvent('error', { error: 'No UTXOs available for this address' });
       return res.status(400).json({ success: false, error: 'No UTXOs available for this address' });
     }
 
-    // Convert to bitcore-lib-b1t format
     const utxos = rawUtxos.map(u => ({
       txid: u.txid,
       vout: u.outputIndex !== undefined ? u.outputIndex : (u.vout !== undefined ? u.vout : 0),
       script: u.script || u.scriptPubKey || scriptHex,
       satoshis: Number(u.satoshis || u.value || 0)
     }));
-
-    // Sort by satoshis descending so largest UTXO is used first
     utxos.sort((a, b) => b.satoshis - a.satoshis);
+
+    sendEvent('progress', { step: 'building', message: 'Erstelle Transaktionen...', progress: 10 });
 
     console.log(`Inscribing ${data.length} bytes (${contentType}) from ${senderAddress} to ${destination}, ${utxos.length} UTXOs available`);
 
@@ -118,6 +136,13 @@ router.post('/inscribe', async (req, res) => {
     const needsBatching = totalTx > MAX_MEMPOOL_CHAIN;
     const batchCount = needsBatching ? Math.ceil(totalTx / MAX_MEMPOOL_CHAIN) : 1;
 
+    sendEvent('info', {
+      totalTransactions: totalTx,
+      needsBatching,
+      batchCount,
+      maxPerBatch: MAX_MEMPOOL_CHAIN
+    });
+
     if (needsBatching) {
       console.log(`Large inscription: ${totalTx} transactions, splitting into ${batchCount} batches (max ${MAX_MEMPOOL_CHAIN} per batch)`);
     }
@@ -131,10 +156,41 @@ router.post('/inscribe', async (req, res) => {
       const batchTxs = pendingTransactions.slice(batchStart, batchEnd);
 
       if (needsBatching) {
+        sendEvent('progress', {
+          step: 'batch',
+          message: `Batch ${batchIndex + 1}/${batchCount}`,
+          batch: batchIndex + 1,
+          totalBatches: batchCount,
+          info: {
+            totalTransactions: totalTx,
+            batchCount: batchCount,
+            currentBatch: batchIndex + 1
+          },
+          progress: 10 + Math.round((batchIndex / batchCount) * 70)
+        });
         console.log(`Batch ${batchIndex + 1}/${batchCount}: Broadcasting transactions ${batchStart + 1}-${batchEnd}`);
       }
 
-      for (const ptx of batchTxs) {
+      for (let i = 0; i < batchTxs.length; i++) {
+        const ptx = batchTxs[i];
+        const txProgress = 10 + Math.round(((batchIndex * MAX_MEMPOOL_CHAIN + i + 1) / totalTx) * 70);
+
+        sendEvent('progress', {
+          step: 'broadcast',
+          message: `Sende TX ${batchStart + i + 1}/${totalTx}`,
+          currentTx: batchStart + i + 1,
+          totalTx,
+          batch: batchIndex + 1,
+          totalBatches: batchCount,
+          info: {
+            totalTransactions: totalTx,
+            batchCount: batchCount,
+            currentBatch: batchIndex + 1,
+            currentTx: batchStart + i + 1
+          },
+          progress: txProgress
+        });
+
         try {
           const txid = await rpcClient.sendRawTransaction(ptx.hex);
           broadcastResults.push({ transactionNumber: ptx.transactionNumber, txid, status: 'broadcast' });
@@ -143,6 +199,11 @@ router.post('/inscribe', async (req, res) => {
         } catch (e) {
           broadcastResults.push({ transactionNumber: ptx.transactionNumber, txid: ptx.txid, status: 'failed', error: e.message });
           console.error(`  Tx ${ptx.transactionNumber} broadcast failed:`, e.message);
+          sendEvent('error', {
+            error: `Transaction ${ptx.transactionNumber} broadcast failed: ${e.message}`,
+            broadcastResults,
+            batchInfo: needsBatching ? { currentBatch: batchIndex + 1, totalBatches: batchCount } : null
+          });
           return res.status(500).json({
             success: false,
             error: `Transaction ${ptx.transactionNumber} broadcast failed: ${e.message}`,
@@ -154,12 +215,47 @@ router.post('/inscribe', async (req, res) => {
       }
 
       if (batchIndex < batchCount - 1 && lastBatchTxid) {
+        sendEvent('progress', {
+          step: 'waiting',
+          message: `Warte auf Block-Bestätigung...`,
+          waitingFor: lastBatchTxid,
+          batch: batchIndex + 1,
+          totalBatches: batchCount,
+          info: {
+            totalTransactions: totalTx,
+            batchCount: batchCount,
+            currentBatch: batchIndex + 1,
+            waitingForBlock: true
+          },
+          progress: 80
+        });
         console.log(`Batch ${batchIndex + 1}/${batchCount} complete. Waiting for 1 confirmation before continuing...`);
         try {
-          await waitForConfirmation(lastBatchTxid);
+          await waitForConfirmation(lastBatchTxid, CONFIRMATION_POLL_INTERVAL, CONFIRMATION_TIMEOUT, (checkCount) => {
+            sendEvent('progress', {
+              step: 'waiting',
+              message: `Prüfe Bestätigung (Versuch ${checkCount})...`,
+              waitingFor: lastBatchTxid,
+              batch: batchIndex + 1,
+              totalBatches: batchCount,
+              info: {
+                totalTransactions: totalTx,
+                batchCount: batchCount,
+                currentBatch: batchIndex + 1,
+                waitingForBlock: true,
+                checkCount: checkCount
+              },
+              progress: 80 + Math.min(checkCount * 2, 15)
+            });
+          });
           console.log(`Confirmation received. Continuing with batch ${batchIndex + 2}...`);
         } catch (waitErr) {
           console.error(`Timeout waiting for confirmation:`, waitErr.message);
+          sendEvent('error', {
+            error: `Timeout waiting for block confirmation between batches: ${waitErr.message}`,
+            broadcastResults,
+            batchInfo: { currentBatch: batchIndex + 1, totalBatches: batchCount, waitingForConfirmation: lastBatchTxid }
+          });
           return res.status(500).json({
             success: false,
             error: `Timeout waiting for block confirmation between batches: ${waitErr.message}`,
@@ -173,16 +269,42 @@ router.post('/inscribe', async (req, res) => {
 
     const lastTxid = broadcastResults[broadcastResults.length - 1]?.txid;
 
-    // Store inscription metadata + content in DB
+    sendEvent('progress', { step: 'saving', message: 'Speichere Inscription...', progress: 95 });
+
     try {
       await getPool().query(
-        `INSERT INTO inscriptions (inscription_txid, owner_address, to_address, content_type, data_size, content, total_transactions, created_at, utxo_txid, utxo_vout)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO inscriptions (inscription_txid, owner_address, to_address, content_type, data_size, content, total_transactions, created_at, utxo_txid, utxo_vout, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'created')
          ON CONFLICT (inscription_txid) DO NOTHING`,
         [lastTxid, senderAddress, destination, contentType, data.length, data, pendingTransactions.length, Math.floor(Date.now() / 1000), lastTxid, 0]
       );
     } catch (dbErr) {
       console.warn('Failed to store inscription metadata:', dbErr.message);
+    }
+
+    sendEvent('complete', {
+      success: true,
+      inscriptionTxid: lastTxid,
+      totalTransactions: pendingTransactions.length,
+      broadcastResults,
+      from: senderAddress,
+      to: destination,
+      contentType,
+      dataSize: data.length,
+      batchInfo: needsBatching ? { totalBatches: batchCount, transactionsPerBatch: MAX_MEMPOOL_CHAIN } : null,
+      info: {
+        totalTransactions: pendingTransactions.length,
+        batchCount: needsBatching ? batchCount : 1,
+        dataSize: data.length
+      },
+      step: 'complete',
+      message: 'Inscription completed successfully!',
+      progress: 100
+    });
+
+    if (useStream) {
+      res.end();
+      return;
     }
 
     res.json({
@@ -255,15 +377,16 @@ router.post('/broadcast-chain', async (req, res) => {
 /**
  * GET /api/ordinals/address/:address/inscriptions
  * List inscriptions owned by or sent to an address.
+ * Includes both created and received ordinals.
  */
 router.get('/address/:address/inscriptions', async (req, res) => {
   try {
     const { address } = req.params;
     const { rows } = await getPool().query(
-      `SELECT inscription_txid, owner_address, to_address, content_type, data_size, total_transactions, created_at, utxo_txid, utxo_vout
+      `SELECT inscription_txid, owner_address, to_address, content_type, data_size, total_transactions, created_at, utxo_txid, utxo_vout, source, ord_id, genesis_height
        FROM inscriptions
        WHERE owner_address = $1 OR to_address = $1
-       ORDER BY created_at DESC
+       ORDER BY COALESCE(created_at, synced_at) DESC
        LIMIT 100`,
       [address]
     );
@@ -276,24 +399,44 @@ router.get('/address/:address/inscriptions', async (req, res) => {
 /**
  * GET /api/ordinals/content/:txid
  * Serve the raw inscription content (image/data).
+ * For locally created inscriptions, serves from DB.
+ * For received inscriptions, proxies from ord-indexer.
  */
 router.get('/content/:txid', async (req, res) => {
   try {
     const { txid } = req.params;
     const { rows } = await getPool().query(
-      'SELECT content_type, content FROM inscriptions WHERE inscription_txid = $1',
+      'SELECT content_type, content, ord_id, source FROM inscriptions WHERE inscription_txid = $1 OR ord_id = $1',
       [txid]
     );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Inscription not found' });
     }
-    const { content_type, content } = rows[0];
-    if (!content) {
-      return res.status(404).json({ success: false, error: 'No content stored' });
+    const { content_type, content, ord_id, source } = rows[0];
+    
+    if (content && content.length > 0) {
+      res.set('Content-Type', content_type || 'application/octet-stream');
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.send(content);
     }
-    res.set('Content-Type', content_type);
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    res.send(content);
+    
+    if ((source === 'received' || !content) && ord_id) {
+      const fetch = (await import('node-fetch')).default;
+      try {
+        const upstream = await fetch(`${ORD_URL}/content/${encodeURIComponent(ord_id)}`, { timeout: 15000 });
+        if (!upstream.ok) {
+          return res.status(upstream.status).json({ success: false, error: 'Content not available from indexer' });
+        }
+        const ct = upstream.headers.get('content-type') || content_type || 'application/octet-stream';
+        res.set('Content-Type', ct);
+        res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        return upstream.body.pipe(res);
+      } catch (proxyErr) {
+        return res.status(502).json({ success: false, error: 'Failed to fetch content from indexer: ' + proxyErr.message });
+      }
+    }
+    
+    res.status(404).json({ success: false, error: 'No content stored' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -314,6 +457,7 @@ router.get('/address/:address/tokens', async (req, res) => {
 /**
  * POST /api/ordinals/transfer
  * Transfer an inscription (ordinal) to another address.
+ * Works for both created and received ordinals.
  */
 router.post('/transfer', async (req, res) => {
   try {
@@ -323,16 +467,43 @@ router.post('/transfer', async (req, res) => {
       return res.status(400).json({ success: false, error: 'wif, senderAddress, inscriptionTxid and toAddress are required' });
     }
 
-    // Find the inscription UTXO (output 0 of the inscription tx should hold the ordinal)
+    // Find the inscription - support both txid and ord_id lookup
     const { rows: inscRows } = await getPool().query(
-      'SELECT utxo_txid, utxo_vout, content_type, data_size FROM inscriptions WHERE inscription_txid = $1',
+      'SELECT utxo_txid, utxo_vout, content_type, data_size, ord_id, source FROM inscriptions WHERE inscription_txid = $1 OR ord_id = $1',
       [inscriptionTxid]
     );
     if (inscRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Inscription not found in database' });
     }
 
-    const insc = inscRows[0];
+    let insc = inscRows[0];
+    
+    // For received ordinals, fetch current UTXO from ord-indexer
+    if (insc.source === 'received' && insc.ord_id) {
+      try {
+        const ordData = await ordFetch(`/inscription/${encodeURIComponent(insc.ord_id)}?json=true`);
+        const info = (ordData?.inscription && typeof ordData.inscription === 'object') ? ordData.inscription : ordData;
+        
+        // Update with current location if available
+        if (info.satpoint || info.location) {
+          const satpoint = info.satpoint || info.location;
+          const match = satpoint.match(/^([a-fA-F0-9]+):(\d+)/);
+          if (match) {
+            insc.utxo_txid = match[1];
+            insc.utxo_vout = parseInt(match[2]) || 0;
+          }
+        }
+        
+        // Verify current owner
+        const currentOwner = info.address || info.owner;
+        if (currentOwner && currentOwner !== senderAddress) {
+          return res.status(400).json({ success: false, error: `Ordinal is currently owned by ${currentOwner}, not ${senderAddress}` });
+        }
+      } catch (e) {
+        console.warn('Failed to fetch ordinal location from indexer:', e.message);
+      }
+    }
+
     const scriptHex = getScriptPubKey(senderAddress);
 
     // Get the UTXO value from the inscription tx output
@@ -401,7 +572,7 @@ router.post('/transfer', async (req, res) => {
     // Update inscription ownership in DB
     try {
       await getPool().query(
-        `UPDATE inscriptions SET to_address = $1, utxo_txid = $2, utxo_vout = 0 WHERE inscription_txid = $3`,
+        `UPDATE inscriptions SET to_address = $1, owner_address = $1, utxo_txid = $2, utxo_vout = 0 WHERE inscription_txid = $3 OR ord_id = $3`,
         [toAddress, txid, inscriptionTxid]
       );
     } catch { }
@@ -414,6 +585,7 @@ router.post('/transfer', async (req, res) => {
       from: senderAddress,
       to: toAddress,
       inscriptionTxid,
+      ordId: insc.ord_id,
     });
   } catch (error) {
     console.error('Transfer error:', error);
@@ -661,6 +833,44 @@ router.get('/explorer/block-count', async (req, res) => {
     res.json({ success: true, blockCount: String(blockCount).trim() });
   } catch (err) {
     res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/ordinals/sync
+ * Trigger immediate sync of ordinals for all watched addresses.
+ */
+router.post('/sync', async (req, res) => {
+  try {
+    const { triggerSync } = await import('../services/ordinalSyncService.js');
+    const result = await triggerSync();
+    res.json({ 
+      success: true, 
+      message: `Sync complete: ${result.totalNew} new, ${result.totalUpdated} updated ordinals`,
+      ...result 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/ordinals/sync/:address
+ * Trigger sync for a specific address.
+ */
+router.post('/sync/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { syncAddress } = await import('../services/ordinalSyncService.js');
+    const result = await syncAddress(address);
+    res.json({ 
+      success: true, 
+      address,
+      message: `Sync complete for ${address}: ${result.newCount} new, ${result.updateCount} updated`,
+      ...result 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

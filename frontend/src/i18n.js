@@ -6,6 +6,18 @@ const resources = {
   // === ADDED BY MULTILANGUAGE FIX ===
   en: {
     translation: {
+            dashboard: {
+              loadError: 'Error loading: {{message}}',
+              indexerUnavailable: 'Indexer status unavailable',
+              utxos: 'UTXOs'
+            },
+            common: {
+              notAvailable: 'N/A'
+            },
+            beta: {
+              title: 'Beta Notice',
+              message: 'This wallet is in beta phase. Please use with caution and only with small amounts.'
+            },
       createWallet: {
         title: 'Create New Wallet',
         stepProgress: 'Step {{current}} of {{total}}',
@@ -429,6 +441,19 @@ const resources = {
     }
   },
   de: {
+    translation: {
+            dashboard: {
+              loadError: 'Fehler beim Laden: {{message}}',
+              indexerUnavailable: 'Indexer-Status nicht verfügbar',
+              utxos: 'UTXOs'
+            },
+            common: {
+              notAvailable: 'N/V'
+            },
+            beta: {
+              title: 'Beta-Hinweis',
+              message: 'Diese Wallet befindet sich in der Beta-Phase. Bitte mit Vorsicht nutzen und nur mit kleinen Beträgen.'
+            },
       createWallet: {
         title: 'Neue Wallet erstellen',
         stepProgress: 'Schritt {{current}} von {{total}}',

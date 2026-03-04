@@ -5,8 +5,10 @@ import { Download, AlertTriangle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useWalletStore from '../store/walletStore';
 import * as keyService from '../services/keyService';
+import { useTranslation } from 'react-i18next';
 
 export default function ImportWallet() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { createVault } = useWalletStore();
 
@@ -19,7 +21,7 @@ export default function ImportWallet() {
   const handleValidate = (e) => {
     e.preventDefault();
     if (!keyService.validateMnemonic(mnemonic.trim())) {
-      toast.error('Ungültiger Recovery Seed');
+      toast.error(t('importWallet.invalidSeed'));
       return;
     }
     setStep(2);
@@ -27,20 +29,20 @@ export default function ImportWallet() {
 
   const handleFinalize = async () => {
     if (password.length < 6) {
-      toast.error('Passwort muss mindestens 6 Zeichen haben.');
+      toast.error(t('importWallet.passwordTooShort'));
       return;
     }
     if (password !== passwordConfirm) {
-      toast.error('Passwörter stimmen nicht überein.');
+      toast.error(t('importWallet.passwordMismatch'));
       return;
     }
     try {
       setLoading(true);
       await createVault(mnemonic.trim(), password);
-      toast.success('Wallet erfolgreich importiert!');
+      toast.success(t('importWallet.success'));
       navigate('/dashboard');
     } catch (error) {
-      toast.error(`Fehler: ${error.message}`);
+      toast.error(t('importWallet.error') + ': ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -50,9 +52,9 @@ export default function ImportWallet() {
     try {
       const text = await navigator.clipboard.readText();
       setMnemonic(text.trim());
-      toast.success('Aus Zwischenablage eingefügt');
+      toast.success(t('importWallet.pasted'));
     } catch {
-      toast.error('Zugriff auf Zwischenablage fehlgeschlagen');
+      toast.error(t('importWallet.pasteFailed'));
     }
   };
 
@@ -63,9 +65,9 @@ export default function ImportWallet() {
           <div className="inline-flex p-4 bg-gradient-orange rounded-full">
             <Download size={32} className="text-white" />
           </div>
-          <h1 className="text-4xl font-bold glow-text">Wallet importieren</h1>
+          <h1 className="text-4xl font-bold glow-text">{t('importWallet.title')}</h1>
           <p className="text-gray-400">
-            {step === 1 ? 'Geben Sie Ihren 12- oder 24-Wort Recovery Seed ein' : 'Passwort festlegen'}
+            {step === 1 ? t('importWallet.step1Desc') : t('importWallet.step2Desc')}
           </p>
         </div>
 
@@ -75,10 +77,9 @@ export default function ImportWallet() {
               <div className="flex items-start space-x-3">
                 <AlertTriangle className="text-b1t-orange mt-1 flex-shrink-0" size={24} />
                 <div className="space-y-2">
-                  <h3 className="font-semibold">Sicherheitshinweis</h3>
+                  <h3 className="font-semibold">{t('importWallet.securityNote')}</h3>
                   <p className="text-sm text-gray-300">
-                    Ihr Seed wird nur lokal in Ihrem Browser verarbeitet und verschlüsselt gespeichert.
-                    Er wird niemals an einen Server gesendet.
+                    {t('importWallet.securityDesc')}
                   </p>
                 </div>
               </div>
@@ -87,63 +88,57 @@ export default function ImportWallet() {
             <form onSubmit={handleValidate} className="space-y-6">
               <div className="card space-y-4">
                 <label className="block">
-                  <span className="text-sm font-semibold mb-2 block">Recovery Seed (12 oder 24 Wörter)</span>
+                  <span className="text-sm font-semibold mb-2 block">{t('importWallet.seedLabel')}</span>
                   <textarea value={mnemonic} onChange={(e) => setMnemonic(e.target.value)}
-                    placeholder="word1 word2 word3 ..." rows={4}
+                    placeholder={t('importWallet.seedPlaceholder')} rows={4}
                     className="input resize-none font-mono text-sm" required />
                 </label>
                 <button type="button" onClick={handlePaste}
                   className="text-sm text-b1t-orange hover:text-b1t-orange-400 transition">
-                  Aus Zwischenablage einfügen
+                  {t('importWallet.pasteFromClipboard')}
                 </button>
               </div>
               <button type="submit" disabled={!mnemonic.trim()} className="btn-primary w-full disabled:opacity-50">
-                Weiter
+                {t('importWallet.continue')}
               </button>
             </form>
           </>
         )}
 
         {step === 2 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <div className="space-y-6">
             <div className="card space-y-4">
               <div className="flex items-center gap-3 mb-2">
-                <Lock size={24} className="text-b1t-orange" />
-                <h3 className="font-semibold text-lg">Wallet-Passwort festlegen</h3>
+                <Lock className="text-b1t-orange" size={24} />
+                <h3 className="font-semibold text-lg">{t('importWallet.setPassword')}</h3>
               </div>
               <p className="text-gray-400 text-sm">
-                Dieses Passwort verschlüsselt Ihren Seed lokal im Browser.
-                Sie benötigen es jedes Mal zum Entsperren.
+                {t('importWallet.setPasswordDesc')}
               </p>
               <div className="space-y-3">
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Passwort (min. 6 Zeichen)" className="input" autoFocus />
+                  placeholder={t('importWallet.passwordPlaceholder')} className="input" />
                 <input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="Passwort bestätigen" className="input" />
+                  placeholder={t('importWallet.passwordConfirmPlaceholder')} className="input" />
               </div>
               {password && password.length < 6 && (
-                <p className="text-red-400 text-xs">Mindestens 6 Zeichen erforderlich</p>
+                <p className="text-red-400 text-xs">{t('importWallet.passwordTooShort')}</p>
               )}
               {passwordConfirm && password !== passwordConfirm && (
-                <p className="text-red-400 text-xs">Passwörter stimmen nicht überein</p>
+                <p className="text-red-400 text-xs">{t('importWallet.passwordMismatch')}</p>
               )}
             </div>
             <div className="flex space-x-4">
-              <button onClick={() => setStep(1)} className="btn-secondary flex-1" disabled={loading}>Zurück</button>
+              <button onClick={() => setStep(1)} className="btn-secondary flex-1" disabled={loading}>
+                {t('importWallet.back')}
+              </button>
               <button onClick={handleFinalize} disabled={loading || password.length < 6 || password !== passwordConfirm}
                 className="btn-primary flex-1 disabled:opacity-50">
-                {loading ? 'Importiere Wallet...' : 'Wallet importieren'}
+                {loading ? t('importWallet.importing') : t('importWallet.import')}
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
-
-        <div className="card bg-dark-400">
-          <h3 className="font-semibold mb-3">Kompatibilität</h3>
-          <p className="text-sm text-gray-400 leading-relaxed">
-            Kompatibel mit allen BIP39-Seeds. Adressen werden nach BIP44-Standard abgeleitet (m/44'/3141'/0'/0/x).
-          </p>
-        </div>
       </motion.div>
     </div>
   );

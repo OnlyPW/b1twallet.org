@@ -1,3 +1,5 @@
+// Home.jsx - Update for Ordinals Integration + Beta Status
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -70,6 +72,14 @@ export default function Home() {
           <span className="text-b1t-orange">{t('home.hero.tagline')}</span>
         </p>
 
+        {/* Beta Notice */}
+        <div className="bg-b1t-orange/10 border border-b1t-orange/30 rounded-lg p-4 max-w-2xl mx-auto">
+          <p className="text-sm text-center">
+            <span className="font-bold text-b1t-orange">⚠️ {t('home.beta.title')}</span>
+            <span className="text-gray-300 ml-2">{t('home.beta.message')}</span>
+          </p>
+        </div>
+
         {/* CTA Buttons */}
         <div className="flex flex-col gap-4 justify-center items-center pt-8 max-w-md mx-auto w-full">
           {isUnlocked ? (
@@ -99,27 +109,31 @@ export default function Home() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('home.passwordPlaceholder')}
-                    className="input pl-10 text-base"
+                    className="input pl-10"
                     autoFocus
                   />
                 </div>
-                <button type="submit" disabled={unlocking || !password} className="btn-primary px-6 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={unlocking || !password}
+                  className="btn-primary px-6 disabled:opacity-50"
+                >
                   {unlocking ? <Loader size={20} className="animate-spin" /> : t('home.unlock')}
                 </button>
               </div>
-              <div className="flex gap-3 justify-center text-sm">
-                <Link to="/create" className="text-gray-400 hover:text-b1t-orange transition">{t('home.cta.create')}</Link>
-                <span className="text-gray-600">|</span>
-                <Link to="/import" className="text-gray-400 hover:text-b1t-orange transition">{t('home.cta.import')}</Link>
+              <div className="flex justify-center">
+                <Link to="/" className="text-sm text-b1t-orange hover:text-b1t-orange-400">
+                  {t('home.cta.create')}
+                </Link>
               </div>
             </form>
           ) : (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/create" className="btn-primary text-lg px-8 py-4">
+            <div className="flex gap-4 w-full">
+              <Link to="/create" className="btn-primary flex-1 text-center">
                 <Wallet className="inline mr-2" size={20} />
                 {t('home.cta.create')}
               </Link>
-              <Link to="/import" className="btn-secondary text-lg px-8 py-4">
+              <Link to="/import" className="btn-secondary flex-1 text-center">
                 <Download className="inline mr-2" size={20} />
                 {t('home.cta.import')}
               </Link>
@@ -173,5 +187,3 @@ export default function Home() {
     </div>
   );
 }
-
-

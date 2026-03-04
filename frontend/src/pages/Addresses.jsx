@@ -5,8 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useWalletStore from '../store/walletStore';
 import { walletApi } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export default function Addresses() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     isUnlocked,
@@ -17,7 +19,7 @@ export default function Addresses() {
     getCurrentAddress,
   } = useWalletStore();
 
-  const [balances, setBalances] = useState({}); // index -> number
+  const [balances, setBalances] = useState({});
   const [loadingBalances, setLoadingBalances] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [addrLoading, setAddrLoading] = useState(false);
@@ -46,21 +48,19 @@ export default function Addresses() {
         }
       });
       setBalances(map);
-      // Auto-aktivieren: wähle die Adresse mit dem höchsten Guthaben (>0)
       try {
         const nonZero = Object.entries(map).filter(([, v]) => (v || 0) > 0);
         if (nonZero.length > 0) {
           const [bestIdx] = nonZero.reduce((best, curr) => (curr[1] > best[1] ? curr : best));
           const currBal = map[currentAddressIndex] || 0;
-          // Nur automatisch wechseln, wenn die aktuelle Adresse kein Guthaben hat
           if ((currBal || 0) === 0 && currentAddressIndex !== Number(bestIdx)) {
             setCurrentAddress(Number(bestIdx));
-            toast.success('Adresse mit Guthaben automatisch aktiviert');
+            toast.success(t('addresses.autoActivated'));
           }
         }
       } catch {}
     } catch (e) {
-      console.warn('Balance-Ladung fehlgeschlagen:', e.message);
+      console.warn(t('addresses.loadFailed') + ':', e.message);
     } finally {
       setLoadingBalances(false);
     }
@@ -71,7 +71,7 @@ export default function Addresses() {
   const copyAddress = (address, i) => {
     try { navigator.clipboard.writeText(address); } catch {}
     setCopiedIndex(i);
-    toast.success('Adresse kopiert!');
+    toast.success(t('addresses.copied'));
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
@@ -80,13 +80,13 @@ export default function Addresses() {
       setAddrLoading(true);
       const newAddrs = useWalletStore.getState().deriveMoreAddresses(n);
       if (newAddrs.length > 0) {
-        toast.success(`${newAddrs.length} neue Adressen abgeleitet`);
+        toast.success(t('addresses.derived', { count: newAddrs.length }));
       } else {
-        toast.error('Wallet ist gesperrt.');
+        toast.error(t('addresses.walletLocked'));
         navigate('/');
       }
     } catch (e) {
-      toast.error(`Fehler beim Ableiten: ${e.message}`);
+      toast.error(t('addresses.deriveError') + ': ' + e.message);
     } finally {
       setAddrLoading(false);
     }
@@ -97,74 +97,73 @@ export default function Addresses() {
   return (
     <div className="max-w-3xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-        {/* Header */}
         <div className="text-center space-y-4">
           <div className="inline-flex p-4 bg-gradient-orange rounded-full">
             <Wallet size={32} className="text-white" />
           </div>
-          <h1 className="text-4xl font-bold glow-text">Adressen</h1>
-          <p className="text-gray-400">Verwalten Sie Ihre abgeleiteten Empfangsadressen</p>
+          <h1 className="text-4xl font-bold glow-text">{t('addresses.title')}</h1>
+          <p className="text-gray-400">{t('addresses.subtitle')}</p>
         </div>
 
-        {/* Active Address */}
-        <div className="card space-y-3">
-          <h3 className="font-semibold">Aktive Adresse</h3>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm">{active?.address || '—'}</span>
-            {active?.address && (
-              <button className="p-2 rounded bg-dark-300 hover:bg-dark-200" onClick={() => copyAddress(active.address, -1)}>
-                <Copy size={16} />
-              </button>
-            )}
-          </div>
-          <div className="text-xs text-gray-500">Index: {active?.index ?? '—'}</div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button className="btn-secondary" onClick={loadBalances} disabled={loadingBalances}>
-            <RefreshCw size={16} className="inline mr-2" />
-            {loadingBalances ? 'Lade Guthaben…' : 'Guthaben aktualisieren'}
-          </button>
-          <button className="btn-primary" onClick={() => deriveMore(5)} disabled={addrLoading}>
-            <Plus size={16} className="inline mr-2" />
-            {addrLoading ? 'Leite ab…' : 'Mehr Adressen ableiten'}
-          </button>
-        </div>
-
-        {/* Address List */}
         <div className="card space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-semibold">Ihre Adressen</h3>
-            <div className="text-sm text-gray-400">Gesamt: {addresses?.length || 0}</div>
+            <h3 className="font-semibold text-lg">{t('addresses.allAddresses')}</h3>
+            <button onClick={loadBalances} disabled={loadingBalances}
+              className="btn-secondary text-sm flex items-center gap-2">
+              <RefreshCw size={16} className={loadingBalances ? 'animate-spin' : ''} />
+              {t('addresses.refresh')}
+            </button>
           </div>
-          <div className="space-y-3">
-            {(addresses || []).map((a, i) => (
-              <div key={i} className={`p-4 rounded border ${i === currentAddressIndex ? 'border-b1t-orange bg-dark-300' : 'border-dark-200 bg-dark-200'}`}>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="text-xs text-gray-400">Index {i}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">{a.address}</span>
-                      <button className="p-2 rounded bg-dark-300 hover:bg-dark-200" onClick={() => copyAddress(a.address, i)}>
+
+          {addresses && addresses.length > 0 ? (
+            <div className="space-y-2">
+              {addresses.map((addr, i) => (
+                <div key={i} 
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    i === currentAddressIndex 
+                      ? 'border-b1t-orange bg-b1t-orange/10' 
+                      : 'border-dark-200 bg-dark-200 hover:border-dark-100'
+                  }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-b1t-orange font-semibold">#{i}</span>
+                        {i === currentAddressIndex && (
+                          <span className="text-xs bg-b1t-orange text-white px-2 py-0.5 rounded">
+                            {t('addresses.active')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-mono text-sm">{shortAddr(addr.address)}</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {t('addresses.balance')}: {(balances[i] || 0) / 1e8} B1T
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => copyAddress(addr.address, i)}
+                        className="p-2 rounded-lg bg-dark-300 hover:bg-dark-100 transition">
                         {copiedIndex === i ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
                       </button>
+                      {i !== currentAddressIndex && (
+                        <button onClick={() => setCurrentAddress(i)}
+                          className="p-2 rounded-lg bg-b1t-orange hover:bg-b1t-orange-400 transition text-white">
+                          {t('addresses.use')}
+                        </button>
+                      )}
                     </div>
-                    <div className="text-xs text-gray-400">Pfad: {a.path}</div>
-                  </div>
-                  <div className="text-right space-y-2">
-                    <div className="text-sm">Guthaben: <span className="font-semibold text-b1t-orange">{Number(balances[i] || 0).toFixed(8)} B1T</span></div>
-                    <button className="btn-secondary text-xs" onClick={() => setCurrentAddress(i)}>
-                      Als aktiv setzen
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
-            {(addresses || []).length === 0 && (
-              <p className="text-sm text-gray-400">Noch keine Adressen. Bitte Wallet erstellen oder importieren.</p>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400 text-center py-8">{t('addresses.none')}</p>
+          )}
+
+          <button onClick={() => deriveMore(5)} disabled={addrLoading}
+            className="btn-secondary w-full flex items-center justify-center gap-2">
+            <Plus size={16} />
+            {addrLoading ? t('addresses.deriving') : t('addresses.deriveMore')}
+          </button>
         </div>
       </motion.div>
     </div>

@@ -5,8 +5,10 @@ import { Copy, Eye, EyeOff, Check, AlertTriangle, RefreshCw, Lock } from 'lucide
 import toast from 'react-hot-toast';
 import useWalletStore from '../store/walletStore';
 import * as keyService from '../services/keyService';
+import { useTranslation } from 'react-i18next';
 
 export default function CreateWallet() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { createVault } = useWalletStore();
 
@@ -38,12 +40,12 @@ export default function CreateWallet() {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(mnemonic);
-    toast.success('Seed wurde kopiert!');
+    toast.success(t('createWallet.copied'));
   };
 
   const proceedToVerification = () => {
     if (!confirmed) {
-      toast.error('Bitte bestätigen Sie, dass Sie Ihren Seed gesichert haben.');
+      toast.error(t('createWallet.confirmBackup'));
       return;
     }
     setStep(2);
@@ -53,7 +55,7 @@ export default function CreateWallet() {
     const words = mnemonic.split(' ');
     const expectedWords = verificationWords.map(i => words[i]).join(' ');
     if (userVerification.trim().toLowerCase() !== expectedWords.toLowerCase()) {
-      toast.error('Verifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingabe.');
+      toast.error(t('createWallet.verificationFailed'));
       return;
     }
     setStep(3);
@@ -61,32 +63,40 @@ export default function CreateWallet() {
 
   const finalizeWallet = async () => {
     if (password.length < 6) {
-      toast.error('Passwort muss mindestens 6 Zeichen haben.');
+      toast.error(t('createWallet.passwordTooShort'));
       return;
     }
     if (password !== passwordConfirm) {
-      toast.error('Passwörter stimmen nicht überein.');
+      toast.error(t('createWallet.passwordMismatch'));
       return;
     }
     try {
       setLoading(true);
       await createVault(mnemonic, password);
-      toast.success('Wallet erfolgreich erstellt!');
+      toast.success(t('createWallet.success'));
       navigate('/dashboard');
     } catch (error) {
-      toast.error(`Fehler: ${error.message}`);
+      toast.error(t('createWallet.error') + ': ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+    <div className="min-h-screen py-8 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-2xl mx-auto space-y-8"
+      >
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold glow-text">Neue Wallet erstellen</h1>
+          <h1 className="text-4xl font-bold glow-text">{t('createWallet.title')}</h1>
           <p className="text-gray-400">
-            Schritt {step} von 3: {step === 1 ? 'Seed sichern' : step === 2 ? 'Verifizierung' : 'Passwort festlegen'}
+            {t('createWallet.stepProgress', { current: step, total: 3 })}: {
+              step === 1 ? t('createWallet.step1') : 
+              step === 2 ? t('createWallet.step2') : 
+              t('createWallet.step3')
+            }
           </p>
         </div>
 
@@ -97,16 +107,15 @@ export default function CreateWallet() {
               <div className="flex items-start space-x-3">
                 <AlertTriangle className="text-b1t-orange mt-1" size={24} />
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Wichtig!</h3>
+                  <h3 className="font-semibold text-lg">{t('createWallet.warning')}</h3>
                   <p className="text-sm text-gray-300">
-                    Ihr Seed ist der <span className="text-b1t-orange font-semibold">einzige Weg</span>,
-                    um Ihre Wallet wiederherzustellen.
+                    {t('createWallet.warningDesc')}
                   </p>
                   <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-                    <li>Schreiben Sie ihn auf Papier</li>
-                    <li>Bewahren Sie ihn an einem sicheren Ort auf</li>
-                    <li>Teilen Sie ihn niemals mit anderen</li>
-                    <li>Speichern Sie ihn NICHT digital</li>
+                    <li>{t('createWallet.warning1')}</li>
+                    <li>{t('createWallet.warning2')}</li>
+                    <li>{t('createWallet.warning3')}</li>
+                    <li>{t('createWallet.warning4')}</li>
                   </ul>
                 </div>
               </div>
@@ -114,7 +123,7 @@ export default function CreateWallet() {
 
             <div className="card space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-lg">Ihr Recovery Seed</h3>
+                <h3 className="font-semibold text-lg">{t('createWallet.yourSeed')}</h3>
                 <div className="flex space-x-2">
                   <button onClick={() => setShowMnemonic(!showMnemonic)} className="p-2 rounded-lg bg-dark-200 hover:bg-dark-100 transition">
                     {showMnemonic ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -141,16 +150,13 @@ export default function CreateWallet() {
               <label className="flex items-center space-x-3 cursor-pointer">
                 <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}
                   className="w-5 h-5 rounded border-gray-600 bg-dark-200 text-b1t-orange focus:ring-b1t-orange" />
-                <span className="text-sm">
-                  Ich habe meinen Recovery Seed sicher aufgeschrieben und verstanden,
-                  dass ich ohne ihn keinen Zugriff mehr auf meine Wallet habe.
-                </span>
+                <span className="text-sm">{t('createWallet.confirmSaved')}</span>
               </label>
             </div>
 
             <button onClick={proceedToVerification} disabled={!confirmed}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
-              Weiter zur Verifizierung
+              {t('createWallet.continue')}
             </button>
           </motion.div>
         )}
@@ -159,22 +165,26 @@ export default function CreateWallet() {
         {step === 2 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="card space-y-4">
-              <h3 className="font-semibold text-lg">Seed verifizieren</h3>
+              <h3 className="font-semibold text-lg">{t('createWallet.verification')}</h3>
               <p className="text-gray-400 text-sm">
-                Geben Sie die folgenden Wörter ein, um zu bestätigen, dass Sie ihn korrekt notiert haben:
+                {t('createWallet.verificationDesc', { 
+                  word1: verificationWords[0] + 1, 
+                  word2: verificationWords[1] + 1, 
+                  word3: verificationWords[2] + 1 
+                })}
               </p>
               <div className="space-y-2">
                 <p className="text-b1t-orange font-semibold">
-                  Wort {verificationWords[0] + 1}, Wort {verificationWords[1] + 1}, Wort {verificationWords[2] + 1}
+                  {t('createWallet.word')} {verificationWords[0] + 1}, {t('createWallet.word')} {verificationWords[1] + 1}, {t('createWallet.word')} {verificationWords[2] + 1}
                 </p>
                 <input type="text" value={userVerification} onChange={(e) => setUserVerification(e.target.value)}
-                  placeholder="Wort1 Wort2 Wort3" className="input" />
+                  placeholder={t('createWallet.verificationPlaceholder')} className="input" />
               </div>
             </div>
             <div className="flex space-x-4">
-              <button onClick={() => setStep(1)} className="btn-secondary flex-1">Zurück</button>
+              <button onClick={() => setStep(1)} className="btn-secondary flex-1">{t('createWallet.back')}</button>
               <button onClick={verifyAndCreateWallet} disabled={!userVerification}
-                className="btn-primary flex-1 disabled:opacity-50">Weiter</button>
+                className="btn-primary flex-1 disabled:opacity-50">{t('createWallet.verify')}</button>
             </div>
           </motion.div>
         )}
@@ -185,30 +195,29 @@ export default function CreateWallet() {
             <div className="card space-y-4">
               <div className="flex items-center gap-3 mb-2">
                 <Lock size={24} className="text-b1t-orange" />
-                <h3 className="font-semibold text-lg">Wallet-Passwort festlegen</h3>
+                <h3 className="font-semibold text-lg">{t('createWallet.setPassword')}</h3>
               </div>
               <p className="text-gray-400 text-sm">
-                Dieses Passwort verschlüsselt Ihren Seed lokal im Browser.
-                Sie benötigen es jedes Mal zum Entsperren der Wallet.
+                {t('createWallet.setPasswordDesc')}
               </p>
               <div className="space-y-3">
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Passwort (min. 6 Zeichen)" className="input" autoFocus />
+                  placeholder={t('createWallet.passwordPlaceholder')} className="input" autoFocus />
                 <input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="Passwort bestätigen" className="input" />
+                  placeholder={t('createWallet.passwordConfirmPlaceholder')} className="input" />
               </div>
               {password && password.length < 6 && (
-                <p className="text-red-400 text-xs">Mindestens 6 Zeichen erforderlich</p>
+                <p className="text-red-400 text-xs">{t('createWallet.passwordTooShort')}</p>
               )}
               {passwordConfirm && password !== passwordConfirm && (
-                <p className="text-red-400 text-xs">Passwörter stimmen nicht überein</p>
+                <p className="text-red-400 text-xs">{t('createWallet.passwordMismatch')}</p>
               )}
             </div>
             <div className="flex space-x-4">
-              <button onClick={() => setStep(2)} className="btn-secondary flex-1" disabled={loading}>Zurück</button>
+              <button onClick={() => setStep(2)} className="btn-secondary flex-1" disabled={loading}>{t('createWallet.back')}</button>
               <button onClick={finalizeWallet} disabled={loading || password.length < 6 || password !== passwordConfirm}
                 className="btn-primary flex-1 disabled:opacity-50">
-                {loading ? 'Erstelle Wallet...' : 'Wallet erstellen'}
+                {loading ? t('createWallet.creating') : t('createWallet.createWallet')}
               </button>
             </div>
           </motion.div>
@@ -217,4 +226,3 @@ export default function CreateWallet() {
     </div>
   );
 }
-

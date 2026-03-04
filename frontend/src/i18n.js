@@ -3,8 +3,96 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 const resources = {
+  // === ADDED BY MULTILANGUAGE FIX ===
   en: {
     translation: {
+      createWallet: {
+        title: 'Create New Wallet',
+        stepProgress: 'Step {{current}} of {{total}}',
+        step1: 'Secure Seed',
+        step2: 'Verification',
+        step3: 'Set Password',
+        warning: 'Important!',
+        warningDesc: 'Your seed is the only way to recover your wallet.',
+        warning1: 'Write it down on paper',
+        warning2: 'Store it in a safe place',
+        warning3: 'Never share it with others',
+        warning4: 'Do NOT store it digitally',
+        yourSeed: 'Your Recovery Seed',
+        confirmSaved: 'I have securely saved my seed and understand that I will lose access to my wallet without it.',
+        continue: 'Continue to Verification',
+        verification: 'Verify Seed',
+        verificationDesc: 'Enter the following words to confirm you have noted them correctly:',
+        word: 'Word',
+        verificationPlaceholder: 'Word1 Word2 Word3',
+        back: 'Back',
+        verify: 'Verify',
+        setPassword: 'Set Wallet Password',
+        setPasswordDesc: 'This password encrypts your seed locally in the browser. You will need it every time to unlock the wallet.',
+        passwordPlaceholder: 'Password (min. 6 characters)',
+        passwordConfirmPlaceholder: 'Confirm Password',
+        passwordTooShort: 'Password must be at least 6 characters',
+        passwordMismatch: 'Passwords do not match',
+        creating: 'Creating Wallet...',
+        createWallet: 'Create Wallet',
+        confirmBackup: 'Please confirm that you have backed up your seed.',
+        verificationFailed: 'Verification failed. Please check your input.',
+        success: 'Wallet created successfully!',
+        error: 'Error',
+        copied: 'Seed copied!'
+      },
+      importWallet: {
+        title: 'Import Wallet',
+        step1Desc: 'Enter your 12 or 24 word recovery seed',
+        step2Desc: 'Set Password',
+        securityNote: 'Security Notice',
+        securityDesc: 'Your seed is only processed locally in your browser and stored encrypted. It is never sent to a server.',
+        seedLabel: 'Recovery Seed (12 or 24 words)',
+        seedPlaceholder: 'word1 word2 word3 ...',
+        pasteFromClipboard: 'Paste from Clipboard',
+        setPassword: 'Set Wallet Password',
+        setPasswordDesc: 'This password encrypts your seed locally in the browser. You will need it every time to unlock the wallet.',
+        passwordPlaceholder: 'Password (min. 6 characters)',
+        passwordConfirmPlaceholder: 'Confirm Password',
+        passwordTooShort: 'Password must be at least 6 characters',
+        passwordMismatch: 'Passwords do not match',
+        importing: 'Importing...',
+        import: 'Import Wallet',
+        invalidSeed: 'Invalid Recovery Seed',
+        success: 'Wallet imported successfully!',
+        error: 'Error',
+        pasted: 'Pasted from clipboard',
+        pasteFailed: 'Clipboard access failed'
+      },
+      addresses: {
+        title: 'Addresses',
+        subtitle: 'Manage your wallet addresses',
+        allAddresses: 'All Addresses',
+        refresh: 'Refresh',
+        active: 'Active',
+        balance: 'Balance',
+        use: 'Use',
+        none: 'No addresses found',
+        deriveMore: 'Derive More Addresses',
+        deriving: 'Deriving...',
+        copied: 'Address copied!',
+        derived: '{{count}} new addresses derived',
+        walletLocked: 'Wallet is locked.',
+        deriveError: 'Error deriving addresses',
+        autoActivated: 'Address with balance automatically activated',
+        loadFailed: 'Balance loading failed'
+      },
+      receive: {
+        title: 'Receive B1T',
+        subtitle: 'Share this address or QR code to receive B1T',
+        selectAddress: 'Select Address',
+        yourAddress: 'Your Address',
+        copied: 'Address copied!',
+        copiedBtn: 'Copied',
+        copyBtn: 'Copy',
+        downloadQR: 'Download QR Code',
+        qrDownloaded: 'QR Code downloaded!'
+      },
       nav: { home: 'Home', dashboard: 'Dashboard', send: 'Send', receive: 'Receive', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Addresses', inscribe: 'Inscribe', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Lock Wallet', refresh: 'Refresh', copy: 'Copy', dismiss: 'Dismiss' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
@@ -341,7 +429,93 @@ const resources = {
     }
   },
   de: {
-    translation: {
+      createWallet: {
+        title: 'Neue Wallet erstellen',
+        stepProgress: 'Schritt {{current}} von {{total}}',
+        step1: 'Seed sichern',
+        step2: 'Verifizierung',
+        step3: 'Passwort festlegen',
+        warning: 'Wichtig!',
+        warningDesc: 'Ihr Seed ist der einzige Weg, um Ihre Wallet wiederherzustellen.',
+        warning1: 'Schreiben Sie ihn auf Papier',
+        warning2: 'Bewahren Sie ihn an einem sicheren Ort auf',
+        warning3: 'Teilen Sie ihn niemals mit anderen',
+        warning4: 'Speichern Sie ihn NICHT digital',
+        yourSeed: 'Ihr Recovery Seed',
+        confirmSaved: 'Ich habe meinen Recovery Seed sicher aufgeschrieben und verstanden, dass ich ohne ihn keinen Zugriff mehr auf meine Wallet habe.',
+        continue: 'Weiter zur Verifizierung',
+        verification: 'Seed verifizieren',
+        verificationDesc: 'Geben Sie die folgenden Wörter ein, um zu bestätigen, dass Sie ihn korrekt notiert haben:',
+        word: 'Wort',
+        verificationPlaceholder: 'Wort1 Wort2 Wort3',
+        back: 'Zurück',
+        verify: 'Verifizieren',
+        setPassword: 'Wallet-Passwort festlegen',
+        setPasswordDesc: 'Dieses Passwort verschlüsselt Ihren Seed lokal im Browser. Sie benötigen es jedes Mal zum Entsperren der Wallet.',
+        passwordPlaceholder: 'Passwort (min. 6 Zeichen)',
+        passwordConfirmPlaceholder: 'Passwort bestätigen',
+        passwordTooShort: 'Passwort muss mindestens 6 Zeichen haben',
+        passwordMismatch: 'Passwörter stimmen nicht überein',
+        creating: 'Erstelle Wallet...',
+        createWallet: 'Wallet erstellen',
+        confirmBackup: 'Bitte bestätigen Sie, dass Sie Ihren Seed gesichert haben.',
+        verificationFailed: 'Verifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingabe.',
+        success: 'Wallet erfolgreich erstellt!',
+        error: 'Fehler',
+        copied: 'Seed wurde kopiert!'
+      },
+      importWallet: {
+        title: 'Wallet importieren',
+        step1Desc: 'Geben Sie Ihren 12- oder 24-Wort Recovery Seed ein',
+        step2Desc: 'Passwort festlegen',
+        securityNote: 'Sicherheitshinweis',
+        securityDesc: 'Ihr Seed wird nur lokal in Ihrem Browser verarbeitet und verschlüsselt gespeichert. Er wird niemals an einen Server gesendet.',
+        seedLabel: 'Recovery Seed (12 oder 24 Wörter)',
+        seedPlaceholder: 'wort1 wort2 wort3 ...',
+        pasteFromClipboard: 'Aus Zwischenablage einfügen',
+        setPassword: 'Wallet-Passwort festlegen',
+        setPasswordDesc: 'Dieses Passwort verschlüsselt Ihren Seed lokal im Browser. Sie benötigen es jedes Mal zum Entsperren der Wallet.',
+        passwordPlaceholder: 'Passwort (min. 6 Zeichen)',
+        passwordConfirmPlaceholder: 'Passwort bestätigen',
+        passwordTooShort: 'Passwort muss mindestens 6 Zeichen haben',
+        passwordMismatch: 'Passwörter stimmen nicht überein',
+        importing: 'Importiere...',
+        import: 'Wallet importieren',
+        invalidSeed: 'Ungültiger Recovery Seed',
+        success: 'Wallet erfolgreich importiert!',
+        error: 'Fehler',
+        pasted: 'Aus Zwischenablage eingefügt',
+        pasteFailed: 'Zugriff auf Zwischenablage fehlgeschlagen'
+      },
+      addresses: {
+        title: 'Adressen',
+        subtitle: 'Verwalten Sie Ihre Wallet-Adressen',
+        allAddresses: 'Alle Adressen',
+        refresh: 'Aktualisieren',
+        active: 'Aktiv',
+        balance: 'Guthaben',
+        use: 'Verwenden',
+        none: 'Keine Adressen gefunden',
+        deriveMore: 'Weitere Adressen ableiten',
+        deriving: 'Leite ab...',
+        copied: 'Adresse kopiert!',
+        derived: '{{count}} neue Adressen abgeleitet',
+        walletLocked: 'Wallet ist gesperrt.',
+        deriveError: 'Fehler beim Ableiten der Adressen',
+        autoActivated: 'Adresse mit Guthaben automatisch aktiviert',
+        loadFailed: 'Laden der Guthaben fehlgeschlagen'
+      },
+      receive: {
+        title: 'B1T empfangen',
+        subtitle: 'Teilen Sie diese Adresse oder den QR-Code, um B1T zu empfangen',
+        selectAddress: 'Adresse auswählen',
+        yourAddress: 'Ihre Adresse',
+        copied: 'Adresse kopiert!',
+        copiedBtn: 'Kopiert',
+        copyBtn: 'Kopieren',
+        downloadQR: 'QR-Code herunterladen',
+        qrDownloaded: 'QR-Code heruntergeladen!'
+      },
       nav: { home: 'Home', dashboard: 'Dashboard', send: 'Senden', receive: 'Empfangen', explorer: 'Explorer', mempool: 'Mempool', addresses: 'Adressen', inscribe: 'Inscribe', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Wallet sperren', refresh: 'Aktualisieren', copy: 'Kopieren', dismiss: 'Ausblenden' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
@@ -677,7 +851,6 @@ const resources = {
     }
   },
   fr: { 
-    translation: {
       nav: { home: 'Accueil', dashboard: 'Tableau de bord', send: 'Envoyer', receive: 'Recevoir', explorer: 'Explorateur', mempool: 'Mempool', addresses: 'Adresses', inscribe: 'Inscrire', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Verrouiller le portefeuille', refresh: 'Actualiser' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },
@@ -714,7 +887,6 @@ const resources = {
     }
   },
   ru: {
-    translation: {
       nav: { home: 'Домой', dashboard: 'Панель', send: 'Отправить', receive: 'Получить', explorer: 'Обозреватель', mempool: 'Мемпул', addresses: 'Адреса', inscribe: 'Инскрипция', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Заблокировать кошелёк', refresh: 'Обновить' },
       footer: { docs: 'Документация', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Некастодиально и с открытым исходным кодом.' },
@@ -744,7 +916,6 @@ const resources = {
     }
   },
   zh: {
-    translation: {
       nav: { home: '首页', dashboard: '仪表盘', send: '发送', receive: '接收', explorer: '区块浏览器', mempool: '内存池', addresses: '地址', inscribe: '铭文', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: '锁定钱包', refresh: '刷新' },
       footer: { docs: '文档', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. 去托管与开源。' },
@@ -774,7 +945,6 @@ const resources = {
     }
   },
   vi: {
-    translation: {
       nav: { home: 'Trang chủ', dashboard: 'Bảng điều khiển', send: 'Gửi', receive: 'Nhận', explorer: 'Trình khám phá', mempool: 'Mempool', inscribe: 'Ghi chữ', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Khóa ví', refresh: 'Làm mới' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Không lưu ký & Mã nguồn mở.' },
@@ -804,7 +974,6 @@ const resources = {
     }
   },
   id: {
-    translation: {
       nav: { home: 'Beranda', dashboard: 'Dasbor', send: 'Kirim', receive: 'Terima', explorer: 'Explorer', mempool: 'Mempool', inscribe: 'Tulis', mine: 'Rabb1ts Lite' },
       actions: { lockWallet: 'Kunci Dompet', refresh: 'Segarkan' },
       footer: { docs: 'Docs', github: 'GitHub', discord: 'Discord', copy: '© 2025 B1T Labs. Non-custodial & Open Source.' },

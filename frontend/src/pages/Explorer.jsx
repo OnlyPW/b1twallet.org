@@ -17,7 +17,7 @@ const fmtBit = (v) => (typeof v === 'number' ? v.toFixed(8) : '0.00000000');
 function TokenVisualizer({ data }) {
   const tick = data.tick || '????';
   const op = data.op || 'info';
-  const hue = (tick.split('').reduce((acc, char) => acc + char.charCodeAt(0), 00) * 137) % 360;
+  const hue = (tick.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 137) % 360;
   const gradient = `linear-gradient(135deg, hsl(${hue}, 70%, 25%), hsl(${hue + 40}, 80%, 15%))`;
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-4 relative text-white" style={{ background: gradient }}>
@@ -69,6 +69,7 @@ function InscriptionCard({ insc, onClick }) {
         }
       })
       .catch(() => { });
+    }
   }, [id, isText]);
 
   const contentUrl = ordinalsExplorerApi.getInscriptionContentUrl(id);
@@ -125,7 +126,7 @@ function InscriptionCard({ insc, onClick }) {
           <p className="font-mono text-[10px] text-gray-500 truncate">{short(id, 6)}</p>
           {ts && ts !== '1970-01-01T00:00:00Z' && (
             <span className="text-[10px] text-gray-600 whitespace-nowrap">
-              {new Date(ts).toLocaleDateString()
+              {new Date(ts).toLocaleDateString()}
             </span>
           )}
         </div>
@@ -247,4 +248,125 @@ function BlockchainDashboard({ onOpenSearch }) {
   );
 }
 
-export default Explorer;
+function OrdinalsExplorer() {
+  const { t } = useTranslation();
+  const [inscriptions, setInscriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setLoading(true);
+    ordinalsExplorerApi.getLatestInscriptions(page)
+      .then((res) => {
+        if (res.success && res.data && res.data.inscriptions) {
+          setInscriptions(res.data.inscriptions);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load ordinals:', err);
+        setLoading(false);
+      });
+  }, [page]);
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Image size={18} className="text-b1t-orange" />
+          {t('ordinals.title')}
+        </h3>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader size={24} className="animate-spin text-b1t-orange" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {inscriptions.map((insc, i) => (
+              <InscriptionCard key={i} insc={insc} onClick={() => {}} />
+            ))}
+          </div>
+          <div className="flex justify-center gap-4 mt-6">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="btn btn-secondary text-sm py-2 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="py-2">Page {page + 1}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              className="btn btn-secondary text-sm py-2"
+            >
+              Next
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function Explorer() {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [view, setView] = useState('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedInscription, setSelectedInscription] = useState(null);
+
+  const handleSearch = useCallback((e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/explorer/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  }, [searchQuery, navigate]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold glow-text">{t('nav.explorer')}</h1>
+        <form onSubmit={handleSearch} className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('explorer.searchPlaceholder')}
+              className="pl-10 pr-4 py-2 bg-dark-200 border border-dark-300 rounded-lg text-sm w-64 focus:border-b1t-orange focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary text-sm py-2"
+          >
+            {t('explorer.search')}
+          </button>
+        </form>
+      </div>
+
+      {/* View Tabs */}
+      <div className="flex gap-4 border-b border-dark-300 pb-2">
+        <button
+          onClick={() => setView('dashboard')}
+          className={`pb-2 px-4 ${view === 'dashboard' ? 'text-b1t-orange border-b-2 border-b1t-orange' : 'text-gray-400'}`}
+        >
+          {t('explorer.latestBlocks')}
+        </button>
+        <button
+          onClick={() => setView('ordinals')}
+          className={`pb-2 px-4 ${view === 'ordinals' ? 'text-b1t-orange border-b-2 border-b1t-orange' : 'text-gray-400'}`}
+        >
+          {t('ordinals.title')}
+        </button>
+      </div>
+
+      {view === 'dashboard' ? <BlockchainDashboard /> : <OrdinalsExplorer />}
+    </div>
+  );
+}

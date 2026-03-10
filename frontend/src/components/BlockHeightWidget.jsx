@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Blocks, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function BlockHeightWidget() {
   const { t } = useTranslation();

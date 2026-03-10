@@ -1,0 +1,343 @@
+{
+  "nav": {
+    "home": "首页",
+    "dashboard": "仪表盘",
+    "send": "发送",
+    "receive": "接收",
+    "explorer": "区块浏览器",
+    "mempool": "内存池",
+    "addresses": "地址",
+    "inscribe": "铭文",
+    "mine": "Rabb1ts Lite"
+  },
+  "actions": {
+    "lockWallet": "锁定钱包",
+    "refresh": "刷新"
+  },
+  "footer": {
+    "docs": "文档",
+    "github": "GitHub",
+    "discord": "Discord",
+    "copy": "© 2025 B1T Labs. 去托管与开源。"
+  },
+  "blockHeight": {
+    "title": "区块高度",
+    "error": "离线",
+    "lastUpdate": "更新于",
+    "newBlock": "发现新区块！",
+    "blockNumber": "区块"
+  },
+  "dashboard": {
+    "title": "仪表盘",
+    "welcome": "欢迎回来！",
+    "loadError": "加载错误：{{message}}",
+    "indexerUnavailable": "索引器状态不可用",
+    "utxos": "UTXOs"
+  },
+  "indexer": {
+    "label": "索引器",
+    "status": {
+      "disabled": "已禁用",
+      "syncing": "同步中",
+      "caught_up": "已同步",
+      "unknown": "未知"
+    },
+    "dbTip": "Tip (DB)",
+    "chainTip": "链",
+    "currentHeight": "当前区块高度"
+  },
+  "balance": {
+    "total": "总余额"
+  },
+  "address": {
+    "active": "活动地址"
+  },
+  "quick": {
+    "send": {
+      "title": "发送 B1T",
+      "subtitle": "创建交易"
+    },
+    "receive": {
+      "title": "接收 B1T",
+      "subtitle": "显示二维码"
+    }
+  },
+  "tx": {
+    "latest": "最新交易",
+    "refresh": "刷新",
+    "none": "暂无交易",
+    "none_subtitle": "您的交易将显示在此处",
+    "confirmations": "确认数"
+  },
+  "home": {
+    "hero": {
+      "subtitle": "现代、安全、去托管的 B1T 与 Ordinals 钱包。",
+      "tagline": "做你自己的银行。"
+    },
+    "cta": {
+      "dashboard": "进入仪表盘",
+      "create": "创建新钱包",
+      "import": "导入钱包"
+    },
+    "features": {
+      "nonCustodial": {
+        "title": "去托管",
+        "desc": "完全掌控你的私钥。你的币，你做主。"
+      },
+      "ordinals": {
+        "title": "Ordinals 即将推出",
+        "desc": "Ordinals 功能开发中；创建/管理/转移即将推出。"
+      },
+      "bip39": {
+        "title": "兼容 BIP39",
+        "desc": "从其他钱包导入现有种子。"
+      },
+      "openSource": {
+        "title": "开源",
+        "desc": "透明代码。无隐藏功能。由社区驱动。"
+      }
+    },
+    "info": {
+      "title": "为什么选择 B1T Wallet？",
+      "desc": "B1T Wallet 是面向 B1T 区块链的完整解决方案，原生支持 Ordinals。以现代、易用的界面管理你的 B1T 资产与 Ordinals —— 安全与主权不妥协。",
+      "phase": "🔥 第 1 阶段已上线！Ordinals 功能将在第 2–4 阶段推出。"
+    },
+    "beta": {
+      "title": "测试版通知",
+      "message": "此钱包处于测试阶段。请谨慎使用，仅使用小额资金。"
+    }
+  },
+  "tokens": {
+    "title": "代币",
+    "none": "未找到代币",
+    "id": "ID",
+    "standard": "标准",
+    "indexerUnavailable": "Ordinals 索引器不可用",
+    "indexerUnavailableDesc": "只有在 Ordinals 索引器运行并同步后才能显示代币数据。您现在已可以铭刻 Ordinals 和代币。",
+    "loadError": "加载代币数据时出错。请稍后重试。",
+    "inscribeNow": "立即铭刻"
+  },
+  "ordinals": {
+    "title": "Ordinals",
+    "none": "暂无铭文",
+    "createNew": "新建铭文",
+    "createFirst": "创建您的第一个铭文",
+    "details": "铭文详情",
+    "contentType": "内容类型",
+    "dataSize": "数据大小",
+    "owner": "所有者",
+    "transactions": "交易",
+    "date": "日期",
+    "transfer": "发送 Ordinal",
+    "transferTo": "发送至地址",
+    "transferPlaceholder": "输入 B1T 地址",
+    "cancel": "取消",
+    "sending": "发送中...",
+    "confirmTransfer": "发送",
+    "transferSuccess": "Ordinal 已发送！TXID: {{txid}}",
+    "transferError": "错误: {{message}}",
+    "newDiscovered": "发现新 Ordinal！",
+    "newDiscoveredDesc": "为您的钱包发现了 {{count}} 个新 ordinal(s)。",
+    "viewOrdinals": "查看 Ordinals",
+    "dismiss": "关闭"
+  },
+  "inscribe": {
+    "title": "铭文",
+    "subtitle": "在 B1T 区块链上铭刻 Ordinals 和代币",
+    "tabImage": "图片 / Ordinal",
+    "tabToken": "代币 / 文本",
+    "dropzone": "拖拽图片到此或点击",
+    "dropzoneFormats": "PNG, JPG, WebP, GIF",
+    "preview": "预览",
+    "original": "原始",
+    "compressed": "压缩 (WebP)",
+    "quality": "质量",
+    "formMode": "表单",
+    "rawMode": "手动 (JSON)",
+    "operation": "操作",
+    "opDeploy": "部署",
+    "opDeployDesc": "创建新代币",
+    "opMint": "铸造",
+    "opMintDesc": "铸造代币",
+    "opTransfer": "转移",
+    "opTransferDesc": "转移代币",
+    "ticker": "代币符号",
+    "settings": "设置",
+    "fromAddress": "发送地址",
+    "toAddress": "目标地址（可选）",
+    "estimatedCost": "预估费用",
+    "success": "铭刻成功！",
+    "walletLocked": "钱包已锁定",
+    "preparing": "正在准备铭刻...",
+    "dontClose": "请勿关闭此窗口！",
+    "dontCloseDesc": "关闭浏览器窗口将中断铭刻过程。",
+    "waitingForBlock": "等待区块确认...",
+    "waitingForTx": "等待 TX",
+    "avgBlockTime": "平均出块时间: ~1分钟",
+    "processingBatch": "正在处理批次 {{current}} / {{total}}...",
+    "broadcastingTx": "正在广播交易 {{current}} / {{total}}...",
+    "transactions": "交易",
+    "batch": "批次",
+    "tx": "Tx",
+    "totalTxLabel": "总交易数",
+    "totalBatchesLabel": "总批次数",
+    "resultTxid": "铭刻 TXID",
+    "resultTxCount": "交易数",
+    "resultContentType": "内容类型",
+    "resultDataSize": "数据大小",
+    "showAllTx": "显示所有交易"
+  },
+  "mine": {
+    "title": "Easy Rabb1t Miner (Lite)",
+    "subtitle": "通过寻找以零开头的交易ID来挖矿RABB1TS代币",
+    "liteNotice": "性能受限的网页版",
+    "liteNoticeDesc": "这个基于浏览器的矿工使用RPC调用，受网络延迟限制。原生桌面矿工（即将推出）的哈希率会快得多。",
+    "walletLocked": "钱包已锁定",
+    "walletLockedDesc": "请解锁您的钱包以使用 Rabb1ts 矿工。",
+    "config": "挖矿配置",
+    "selectUtxo": "选择 UTXO",
+    "refresh": "刷新",
+    "startMining": "开始挖矿（{{count}} 核）",
+    "stopMiner": "停止矿工",
+    "statusMining": "挖矿中",
+    "statusIdle": "空闲"
+  },
+  "mempool": {
+    "title": "内存池",
+    "status": "状态",
+    "refresh": "刷新",
+    "loading": "加载中...",
+    "size": "大小",
+    "bytes": "字节",
+    "usage": "使用量",
+    "minFee": "最低手续费",
+    "txids": "TxIDs",
+    "none": "未找到内存池交易。",
+    "raw": "RAW 视图",
+    "loadingTx": "正在加载交易...",
+    "selectPrompt": "在左侧选择一个 TXID 查看详情。",
+    "verbose": "详细",
+    "searchPlaceholder": "搜索交易ID...",
+    "fee": "费用",
+    "feeRate": "费率",
+    "satVB": "聪/vB",
+    "time": "时间",
+    "ancestors": "祖先",
+    "descendants": "后代",
+    "replaceable": "可替换",
+    "openExplorer": "在浏览器中打开",
+    "toast": {
+      "incoming": "检测到传入付款：+{{delta}} B1T 到地址 #{{index}}"
+    }
+  },
+  "importWallet": {
+    "title": "导入钱包",
+    "step1Desc": "输入您的12或24字恢复助记词",
+    "step2Desc": "设置密码",
+    "securityNote": "安全提示",
+    "securityDesc": "您的助记词仅在浏览器本地处理并加密存储。它永远不会发送到服务器。",
+    "seedLabel": "恢复助记词（12或24个单词）",
+    "seedPlaceholder": "单词1 单词2 单词3 ...",
+    "pasteFromClipboard": "从剪贴板粘贴",
+    "setPassword": "设置钱包密码",
+    "setPasswordDesc": "此密码在浏览器中本地加密您的助记词。每次解锁钱包时都需要它。",
+    "passwordPlaceholder": "密码（至少6个字符）",
+    "passwordConfirmPlaceholder": "确认密码",
+    "passwordTooShort": "密码必须至少6个字符",
+    "passwordMismatch": "密码不匹配",
+    "importing": "正在导入...",
+    "import": "导入钱包",
+    "invalidSeed": "无效的恢复助记词",
+    "success": "钱包导入成功！",
+    "error": "错误",
+    "pasted": "已从剪贴板粘贴",
+    "pasteFailed": "剪贴板访问失败",
+    "back": "返回",
+    "continue": "继续"
+  },
+  "receive": {
+    "title": "接收 B1T",
+    "subtitle": "分享此地址或二维码以接收 B1T",
+    "selectAddress": "选择地址",
+    "yourAddress": "您的地址",
+    "copied": "地址已复制！",
+    "copiedBtn": "已复制",
+    "copyBtn": "复制",
+    "downloadQR": "下载二维码",
+    "qrDownloaded": "二维码已下载！"
+  },
+  "send": {
+    "title": "发送 B1T",
+    "available": "可用",
+    "fromLabel": "发送地址",
+    "onlyFundedLabel": "仅显示有余额的地址",
+    "allOption": "所有地址 · 总和：{{sum}} B1T",
+    "recipientLabel": "接收地址",
+    "recipientPlaceholder": "输入 B1T 地址",
+    "amountLabel": "金额（B1T）",
+    "amountPlaceholder": "0.00000000",
+    "max": "最大",
+    "feeLabel": "网络费用（B1T）",
+    "feeSuggestionMinimum": "建议：{{suggested}} · 最低：{{min}}",
+    "cautionCover": "请确保金额加上费用不超过可用余额。",
+    "cautionIrreversible": "交易无法撤销！",
+    "submit": "发送 B1T",
+    "submitting": "正在发送交易...",
+    "addrItem": "#{{i}} · {{short}} · {{balance}} B1T",
+    "toast": {
+      "sent": "交易已发送！TXID：{{txid}}",
+      "noAddress": "未找到地址",
+      "locked": "钱包已锁定。请重新导入。",
+      "invalidAmount": "无效金额",
+      "insufficient": "余额不足",
+      "genericError": "错误：{{message}}"
+    }
+  },
+  "explorer": {
+    "searchPlaceholder": "地址、TXID、区块哈希或高度",
+    "search": "搜索",
+    "latestBlocks": "最新区块",
+    "summary": "摘要",
+    "rawTitle": "原始结果",
+    "details": "详情",
+    "address": "地址",
+    "sent": "已发送",
+    "received": "已接收",
+    "txCount": "交易数",
+    "inputs": "输入",
+    "outputs": "输出",
+    "amount": "金额",
+    "from": "来自",
+    "to": "至",
+    "coinbase": "Coinbase",
+    "newBlock": "新区块",
+    "fee": "费用",
+    "block": "区块",
+    "height": "高度",
+    "time": "时间",
+    "hash": "哈希",
+    "open": "打开",
+    "copySuccess": "已复制！"
+  },
+  "common": {
+    "notAvailable": "不适用"
+  },
+  "addresses": {
+    "title": "地址",
+    "subtitle": "管理您的钱包地址",
+    "allAddresses": "所有地址",
+    "refresh": "刷新",
+    "active": "活跃",
+    "balance": "余额",
+    "use": "使用",
+    "none": "未找到地址",
+    "deriveMore": "派生更多地址",
+    "deriving": "派生中...",
+    "copied": "地址已复制！",
+    "derived": "{{count}} 个新地址已派生",
+    "walletLocked": "钱包已锁定。",
+    "deriveError": "派生地址时出错",
+    "autoActivated": "有余额的地址已自动激活",
+    "loadFailed": "余额加载失败"
+  }
+}

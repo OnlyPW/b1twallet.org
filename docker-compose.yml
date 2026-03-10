@@ -17,7 +17,7 @@ services:
       - ./bitcore-config/bit.conf.template:/config/bit.conf:ro
     ports:
       - "8333:8333"
-      - "8332:8332"
+      - "8334:8332"
     networks:
       - b1t-network
     healthcheck:
@@ -62,7 +62,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "3001:3001"
+      - "3005:3001"
     environment:
       - RPC_HOST=b1t-core
       - RPC_PORT=8332
@@ -70,7 +70,7 @@ services:
       - RPC_PASSWORD=changeme
       - PORT=3001
       - NODE_ENV=development
-      - CORS_ORIGIN=http://localhost:3000,http://localhost:3002
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:3002,http://localhost:3006,https://b1twallet.org
       - DB_HOST=b1t-db
       - DB_PORT=5432
       - DB_USER=b1t
@@ -98,9 +98,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3006:3000"
     environment:
-      - VITE_API_URL=http://localhost:3001
       - NODE_ENV=development
     volumes:
       - ./frontend:/app
@@ -121,7 +120,7 @@ services:
       - POSTGRES_PASSWORD=b1tpass
       - POSTGRES_DB=b1twallet
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:

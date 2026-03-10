@@ -1,0 +1,340 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "dashboard": "Bảng điều khiển",
+    "send": "Gửi",
+    "receive": "Nhận",
+    "explorer": "Trình khám phá",
+    "mempool": "Mempool",
+    "inscribe": "Ghi chữ",
+    "mine": "Rabb1ts Lite",
+    "addresses": "Địa chỉ"
+  },
+  "actions": {
+    "lockWallet": "Khóa ví",
+    "refresh": "Làm mới"
+  },
+  "footer": {
+    "docs": "Docs",
+    "github": "GitHub",
+    "discord": "Discord",
+    "copy": "© 2025 B1T Labs. Không lưu ký & Mã nguồn mở."
+  },
+  "blockHeight": {
+    "title": "Độ cao khối",
+    "error": "Ngoại tuyến",
+    "lastUpdate": "Cập nhật",
+    "newBlock": "Đã tìm thấy khối mới!",
+    "blockNumber": "Khối"
+  },
+  "dashboard": {
+    "title": "Bảng điều khiển",
+    "welcome": "Chào mừng trở lại!",
+    "loadError": "Lỗi tải: {{message}}",
+    "indexerUnavailable": "Trạng thái indexer không khả dụng",
+    "utxos": "UTXOs"
+  },
+  "indexer": {
+    "label": "Bộ lập chỉ mục",
+    "status": {
+      "disabled": "Tắt",
+      "syncing": "Đang đồng bộ",
+      "caught_up": "Đã đồng bộ",
+      "unknown": "Không rõ"
+    },
+    "dbTip": "Tip (DB)",
+    "chainTip": "Chuỗi",
+    "currentHeight": "Độ cao khối hiện tại"
+  },
+  "balance": {
+    "total": "Tổng số dư"
+  },
+  "address": {
+    "active": "Địa chỉ đang dùng"
+  },
+  "quick": {
+    "send": {
+      "title": "Gửi B1T",
+      "subtitle": "Tạo giao dịch"
+    },
+    "receive": {
+      "title": "Nhận B1T",
+      "subtitle": "Hiển thị mã QR"
+    }
+  },
+  "tx": {
+    "latest": "Giao dịch gần đây",
+    "refresh": "Làm mới",
+    "none": "Chưa có giao dịch",
+    "none_subtitle": "Giao dịch của bạn sẽ xuất hiện tại đây",
+    "confirmations": "Xác nhận"
+  },
+  "home": {
+    "hero": {
+      "subtitle": "Ví hiện đại, an toàn, không lưu ký cho B1T và Ordinals.",
+      "tagline": "Hãy là ngân hàng của chính bạn."
+    },
+    "cta": {
+      "dashboard": "Tới bảng điều khiển",
+      "create": "Tạo ví mới",
+      "import": "Nhập ví"
+    },
+    "features": {
+      "nonCustodial": {
+        "title": "Không lưu ký",
+        "desc": "Toàn quyền kiểm soát khóa riêng. Coin của bạn, trách nhiệm của bạn."
+      },
+      "ordinals": {
+        "title": "Ordinals sắp có",
+        "desc": "Tính năng Ordinals đang phát triển; tạo/quản lý/chuyển sắp có."
+      },
+      "bip39": {
+        "title": "Tương thích BIP39",
+        "desc": "Nhập seed có sẵn từ ví khác."
+      },
+      "openSource": {
+        "title": "Mã nguồn mở",
+        "desc": "Mã minh bạch. Không tính năng ẩn. Do cộng đồng dẫn dắt."
+      }
+    },
+    "info": {
+      "title": "Vì sao chọn B1T Wallet?",
+      "desc": "B1T Wallet là giải pháp tích hợp cho blockchain B1T với hỗ trợ Ordinals gốc. Quản lý B1T coin và Ordinals trong giao diện hiện đại, thân thiện — không thỏa hiệp về bảo mật và tự chủ.",
+      "phase": "🔥 Giai đoạn 1 đã hoạt động! Tính năng Ordinals sẽ ra mắt ở giai đoạn 2–4."
+    },
+    "beta": {
+      "title": "Thông báo Beta",
+      "message": "Ví này đang ở giai đoạn beta. Vui lòng sử dụng cẩn thận và chỉ với số tiền nhỏ."
+    }
+  },
+  "tokens": {
+    "title": "Token",
+    "none": "Không tìm thấy token",
+    "id": "ID",
+    "standard": "Tiêu chuẩn",
+    "indexerUnavailable": "Ordinals Indexer không khả dụng",
+    "indexerUnavailableDesc": "Dữ liệu token chỉ có thể hiển thị khi Ordinals Indexer đang chạy và đồng bộ. Bạn vẫn có thể tạo Ordinals và Tokens.",
+    "loadError": "Lỗi khi tải dữ liệu token. Vui lòng thử lại sau.",
+    "inscribeNow": "Ghi chữ ngay"
+  },
+  "ordinals": {
+    "title": "Ordinals",
+    "none": "Chưa có inscription nào",
+    "createNew": "Inscription Mới",
+    "createFirst": "Tạo inscription đầu tiên",
+    "details": "Chi tiết Inscription",
+    "contentType": "Loại Nội dung",
+    "dataSize": "Kích thước Dữ liệu",
+    "owner": "Chủ sở hữu",
+    "transactions": "Giao dịch",
+    "date": "Ngày",
+    "transfer": "Gửi Ordinal",
+    "transferTo": "Gửi đến địa chỉ",
+    "transferPlaceholder": "Nhập địa chỉ B1T",
+    "cancel": "Hủy",
+    "sending": "Đang gửi...",
+    "confirmTransfer": "Gửi",
+    "transferSuccess": "Ordinal đã gửi! TXID: {{txid}}",
+    "transferError": "Lỗi: {{message}}",
+    "newDiscovered": "Phát Hiện Ordinal Mới!",
+    "newDiscoveredDesc": "{{count}} ordinal(s) mới đã được tìm thấy cho ví của bạn.",
+    "viewOrdinals": "Xem Ordinals",
+    "dismiss": "Đóng"
+  },
+  "inscribe": {
+    "title": "Ghi chữ",
+    "subtitle": "Ghi Ordinals & Tokens lên blockchain B1T",
+    "tabImage": "Hình ảnh / Ordinal",
+    "tabToken": "Token / Văn bản",
+    "dropzone": "Kéo hình ảnh vào đây hoặc nhấp",
+    "dropzoneFormats": "PNG, JPG, WebP, GIF",
+    "preview": "Xem trước",
+    "original": "Gốc",
+    "compressed": "Nén (WebP)",
+    "quality": "Chất lượng",
+    "formMode": "Biểu mẫu",
+    "rawMode": "Thủ công (JSON)",
+    "operation": "Thao tác",
+    "opDeploy": "Triển khai",
+    "opDeployDesc": "Tạo token mới",
+    "opMint": "Mint",
+    "opMintDesc": "Đúc token",
+    "opTransfer": "Chuyển",
+    "opTransferDesc": "Chuyển token",
+    "ticker": "Mã token",
+    "settings": "Cài đặt",
+    "success": "Ghi chữ thành công!",
+    "walletLocked": "Ví đã khóa",
+    "preparing": "Đang chuẩn bị ghi chữ...",
+    "dontClose": "Không đóng cửa sổ này!",
+    "dontCloseDesc": "Đóng cửa sổ sẽ ngắt quá trình ghi chữ.",
+    "waitingForBlock": "Đang chờ xác nhận khối...",
+    "waitingForTx": "Đang chờ TX",
+    "avgBlockTime": "Thời gian khối trung bình: ~1 phút",
+    "processingBatch": "Đang xử lý lô {{current}}/{{total}}...",
+    "broadcastingTx": "Đang phát giao dịch {{current}}/{{total}}...",
+    "transactions": "Giao dịch",
+    "batch": "Lô",
+    "tx": "Tx",
+    "totalTxLabel": "Tổng giao dịch",
+    "totalBatchesLabel": "Tổng lô",
+    "resultTxid": "TXID ghi chữ",
+    "resultTxCount": "Giao dịch",
+    "resultContentType": "Loại nội dung",
+    "resultDataSize": "Kích thước dữ liệu",
+    "showAllTx": "Hiển thị tất cả giao dịch"
+  },
+  "mine": {
+    "title": "Easy Rabb1t Miner (Lite)",
+    "subtitle": "Đào RABB1TS bằng cách tìm ID giao dịch bắt đầu bằng số không",
+    "liteNotice": "Phiên bản web với hiệu suất hạn chế",
+    "liteNoticeDesc": "Trình đào dựa trên trình duyệt này sử dụng lệnh gọi RPC và bị giới hạn bởi độ trễ mạng. Để có tốc độ hash tối đa, trình đào máy tính để bàn gốc (sắp ra mắt) sẽ nhanh hơn nhiều.",
+    "walletLocked": "Ví đã khóa",
+    "walletLockedDesc": "Vui lòng mở khóa ví để truy cập Rabb1ts Miner.",
+    "config": "Cấu hình đào",
+    "selectUtxo": "Chọn UTXO",
+    "refresh": "Làm mới",
+    "startMining": "Bắt đầu đào ({{count}} lõi)",
+    "stopMiner": "Dừng máy đào",
+    "statusMining": "ĐANG ĐÀO",
+    "statusIdle": "CHƯA BẮT ĐẦU"
+  },
+  "mempool": {
+    "title": "Mempool",
+    "status": "Trạng thái",
+    "refresh": "Làm mới",
+    "loading": "Đang tải...",
+    "size": "Kích thước",
+    "bytes": "Byte",
+    "usage": "Sử dụng",
+    "minFee": "Phí tối thiểu",
+    "txids": "TxIDs",
+    "none": "Không có giao dịch trong mempool.",
+    "raw": "RAW",
+    "loadingTx": "Đang tải giao dịch...",
+    "selectPrompt": "Chọn một TXID bên trái để xem chi tiết.",
+    "verbose": "Chi tiết",
+    "searchPlaceholder": "Tìm kiếm TXID...",
+    "fee": "Phí",
+    "feeRate": "Tỷ lệ phí",
+    "satVB": "sat/vB",
+    "time": "Thờ gian",
+    "ancestors": "Tổ tiên",
+    "descendants": "Hậu duệ",
+    "replaceable": "Có thể thay thế",
+    "openExplorer": "Mở trong Explorer",
+    "toast": {
+      "incoming": "Phát hiện thanh toán đến: +{{delta}} B1T đến địa chỉ #{{index}}"
+    }
+  },
+  "importWallet": {
+    "title": "Nhập ví",
+    "step1Desc": "Nhập cụm từ khôi phục 12 hoặc 24 từ của bạn",
+    "step2Desc": "Đặt mật khẩu",
+    "securityNote": "Lưu ý bảo mật",
+    "securityDesc": "Cụm từ của bạn chỉ được xử lý cục bộ trong trình duyệt và lưu trữ mã hóa. Nó không bao giờ được gửi đến máy chủ.",
+    "seedLabel": "Cụm từ khôi phục (12 hoặc 24 từ)",
+    "seedPlaceholder": "từ1 từ2 từ3 ...",
+    "pasteFromClipboard": "Dán từ clipboard",
+    "setPassword": "Đặt mật khẩu ví",
+    "setPasswordDesc": "Mật khẩu này mã hóa cụm từ của bạn cục bộ trong trình duyệt. Bạn sẽ cần nó mỗi lần để mở khóa ví.",
+    "passwordPlaceholder": "Mật khẩu (tối thiểu 6 ký tự)",
+    "passwordConfirmPlaceholder": "Xác nhận mật khẩu",
+    "passwordTooShort": "Mật khẩu phải có ít nhất 6 ký tự",
+    "passwordMismatch": "Mật khẩu không khớp",
+    "importing": "Đang nhập...",
+    "import": "Nhập ví",
+    "invalidSeed": "Cụm từ khôi phục không hợp lệ",
+    "success": "Ví đã được nhập thành công!",
+    "error": "Lỗi",
+    "pasted": "Đã dán từ clipboard",
+    "pasteFailed": "Truy cập clipboard thất bại",
+    "back": "Quay lại",
+    "continue": "Tiếp tục"
+  },
+  "receive": {
+    "title": "Nhận B1T",
+    "subtitle": "Chia sẻ địa chỉ hoặc mã QR này để nhận B1T",
+    "selectAddress": "Chọn địa chỉ",
+    "yourAddress": "Địa chỉ của bạn",
+    "copied": "Đã sao chép địa chỉ!",
+    "copiedBtn": "Đã sao chép",
+    "copyBtn": "Sao chép",
+    "downloadQR": "Tải xuống mã QR",
+    "qrDownloaded": "Đã tải xuống mã QR!"
+  },
+  "send": {
+    "title": "Gửi B1T",
+    "available": "Có sẵn",
+    "fromLabel": "Địa chỉ gửi",
+    "onlyFundedLabel": "Chỉ hiển thị địa chỉ có số dư",
+    "allOption": "Tất cả địa chỉ · Tổng: {{sum}} B1T",
+    "recipientLabel": "Địa chỉ nhận",
+    "recipientPlaceholder": "Nhập địa chỉ B1T",
+    "amountLabel": "Số tiền (B1T)",
+    "amountPlaceholder": "0.00000000",
+    "max": "Tối đa",
+    "feeLabel": "Phí mạng (B1T)",
+    "feeSuggestionMinimum": "Đề xuất: {{suggested}} · Tối thiểu: {{min}}",
+    "cautionCover": "Đảm bảo số tiền cộng phí được bảo hiểm bởi số dư khả dụng.",
+    "cautionIrreversible": "Giao dịch không thể đảo ngược!",
+    "submit": "Gửi B1T",
+    "submitting": "Đang gửi giao dịch...",
+    "addrItem": "#{{i}} · {{short}} · {{balance}} B1T",
+    "toast": {
+      "sent": "Giao dịch đã được gửi! TXID: {{txid}}",
+      "noAddress": "Không tìm thấy địa chỉ",
+      "locked": "Ví đã bị khóa. Vui lòng nhập lại.",
+      "invalidAmount": "Số tiền không hợp lệ",
+      "insufficient": "Không đủ số dư",
+      "genericError": "Lỗi: {{message}}"
+    }
+  },
+  "explorer": {
+    "searchPlaceholder": "Địa chỉ, TXID, hash khối hoặc độ cao",
+    "search": "Tìm kiếm",
+    "latestBlocks": "Các khối mới nhất",
+    "summary": "Tóm tắt",
+    "rawTitle": "Kết quả thô",
+    "details": "Chi tiết",
+    "address": "Địa chỉ",
+    "sent": "Đã gửi",
+    "received": "Đã nhận",
+    "txCount": "Số giao dịch",
+    "inputs": "Đầu vào",
+    "outputs": "Đầu ra",
+    "amount": "Số tiền",
+    "from": "Từ",
+    "to": "Đến",
+    "coinbase": "Coinbase",
+    "newBlock": "Khối mới",
+    "fee": "Phí",
+    "block": "Khối",
+    "height": "Độ cao",
+    "time": "Thờ gian",
+    "hash": "Hash",
+    "open": "Mở",
+    "copySuccess": "Đã sao chép!"
+  },
+  "common": {
+    "notAvailable": "N/A"
+  },
+  "addresses": {
+    "title": "Địa chỉ",
+    "subtitle": "Quản lý địa chỉ ví của bạn",
+    "allAddresses": "Tất cả địa chỉ",
+    "refresh": "Làm mới",
+    "active": "Hoạt động",
+    "balance": "Số dư",
+    "use": "Sử dụng",
+    "none": "Không tìm thấy địa chỉ",
+    "deriveMore": "Tạo thêm địa chỉ",
+    "deriving": "Đang tạo...",
+    "copied": "Đã sao chép địa chỉ!",
+    "derived": "{{count}} địa chỉ mới được tạo",
+    "walletLocked": "Ví đã bị khóa.",
+    "deriveError": "Lỗi khi tạo địa chỉ",
+    "autoActivated": "Địa chỉ có số dư được tự động kích hoạt",
+    "loadFailed": "Tải số dư thất bại"
+  }
+}

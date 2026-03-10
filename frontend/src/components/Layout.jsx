@@ -17,10 +17,10 @@ export default function Layout() {
     { name: t('nav.home'), href: '/', icon: Home, requiresAuth: false },
     { name: t('nav.dashboard'), href: '/dashboard', icon: Wallet, requiresAuth: true },
     { name: t('nav.send'), href: '/send', icon: Send, requiresAuth: true },
+    { name: t('nav.addresses'), href: '/addresses', icon: BookOpen, requiresAuth: true },
     { name: t('nav.receive'), href: '/receive', icon: Download, requiresAuth: true },
     { name: t('nav.inscribe'), href: '/inscribe', icon: PenTool, requiresAuth: true },
-    { name: t('nav.mine'), href: '/mine', icon: Pickaxe, requiresAuth: true },
-    { name: t('nav.addresses'), href: '/addresses', icon: BookOpen, requiresAuth: true },
+    // { name: t('nav.mine'), href: '/mine', icon: Pickaxe, requiresAuth: true }, // TEMPORARILY DISABLED
     { name: t('nav.explorer'), href: '/explorer', icon: Search, requiresAuth: false },
     { name: t('nav.mempool'), href: '/mempool', icon: Activity, requiresAuth: false },
   ];
@@ -171,8 +171,8 @@ export default function Layout() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="text-yellow-500 flex-shrink-0 mt-0.5" size={18} />
               <div className="text-sm">
-                <p className="font-semibold">{t('beta.title')}</p>
-                <p className="text-gray-300">{t('beta.message')}</p>
+                <p className="font-semibold">{t('home.beta.title')}</p>
+                <p className="text-gray-300">{t('home.beta.message')}</p>
               </div>
             </div>
             <button onClick={dismissBeta} className="text-xs text-yellow-500 hover:text-yellow-400">

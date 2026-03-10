@@ -1,0 +1,340 @@
+{
+  "nav": {
+    "home": "Beranda",
+    "dashboard": "Dasbor",
+    "send": "Kirim",
+    "receive": "Terima",
+    "explorer": "Explorer",
+    "mempool": "Mempool",
+    "inscribe": "Tulis",
+    "mine": "Rabb1ts Lite",
+    "addresses": "Alamat"
+  },
+  "actions": {
+    "lockWallet": "Kunci Dompet",
+    "refresh": "Segarkan"
+  },
+  "footer": {
+    "docs": "Docs",
+    "github": "GitHub",
+    "discord": "Discord",
+    "copy": "© 2025 B1T Labs. Non-custodial & Open Source."
+  },
+  "blockHeight": {
+    "title": "Ketinggian Blok",
+    "error": "Offline",
+    "lastUpdate": "Diperbarui",
+    "newBlock": "Blok Baru Ditemukan!",
+    "blockNumber": "Blok"
+  },
+  "dashboard": {
+    "title": "Dasbor",
+    "welcome": "Selamat datang kembali!",
+    "loadError": "Kesalahan memuat: {{message}}",
+    "indexerUnavailable": "Status indexer tidak tersedia",
+    "utxos": "UTXOs"
+  },
+  "indexer": {
+    "label": "Pengindeks",
+    "status": {
+      "disabled": "Dinonaktifkan",
+      "syncing": "Sinkronisasi",
+      "caught_up": "Tersinkron",
+      "unknown": "Tidak diketahui"
+    },
+    "dbTip": "Tip (DB)",
+    "chainTip": "Rantai",
+    "currentHeight": "Ketinggian Blok Saat Ini"
+  },
+  "balance": {
+    "total": "Saldo Total"
+  },
+  "address": {
+    "active": "Alamat Aktif"
+  },
+  "quick": {
+    "send": {
+      "title": "Kirim B1T",
+      "subtitle": "Buat transaksi"
+    },
+    "receive": {
+      "title": "Terima B1T",
+      "subtitle": "Tampilkan kode QR"
+    }
+  },
+  "tx": {
+    "latest": "Transaksi terbaru",
+    "refresh": "Segarkan",
+    "none": "Belum ada transaksi",
+    "none_subtitle": "Transaksi Anda akan muncul di sini",
+    "confirmations": "Konfirmasi"
+  },
+  "home": {
+    "hero": {
+      "subtitle": "Dompet modern, aman, non-custodial untuk B1T dan Ordinals.",
+      "tagline": "Jadilah bank Anda sendiri."
+    },
+    "cta": {
+      "dashboard": "Ke Dasbor",
+      "create": "Buat Dompet Baru",
+      "import": "Impor Dompet"
+    },
+    "features": {
+      "nonCustodial": {
+        "title": "Non-custodial",
+        "desc": "Kendalikan sepenuhnya private key Anda. Koin Anda, tanggung jawab Anda."
+      },
+      "ordinals": {
+        "title": "Ordinals segera hadir",
+        "desc": "Fitur Ordinals sedang dikerjakan; buat/kelola/transfer segera hadir."
+      },
+      "bip39": {
+        "title": "Kompatibel BIP39",
+        "desc": "Impor seed yang sudah ada dari dompet lain."
+      },
+      "openSource": {
+        "title": "Sumber Terbuka",
+        "desc": "Kode transparan. Tanpa fitur tersembunyi. Digerakkan komunitas."
+      }
+    },
+    "info": {
+      "title": "Mengapa B1T Wallet?",
+      "desc": "B1T Wallet adalah solusi terintegrasi untuk blockchain B1T dengan dukungan Ordinals native. Kelola koin B1T dan Ordinals dalam antarmuka modern dan ramah pengguna — tanpa kompromi keamanan dan kedaulatan.",
+      "phase": "🔥 Fase 1 sudah aktif! Fitur Ordinals akan hadir di Fase 2–4."
+    },
+    "beta": {
+      "title": "Pemberitahuan Beta",
+      "message": "Dompet ini dalam fase beta. Harap gunakan dengan hati-hati dan hanya dengan jumlah kecil."
+    }
+  },
+  "tokens": {
+    "title": "Token",
+    "none": "Tidak ada token ditemukan",
+    "id": "ID",
+    "standard": "Standar",
+    "indexerUnavailable": "Ordinals Indexer tidak tersedia",
+    "indexerUnavailableDesc": "Data token hanya dapat ditampilkan setelah Ordinals Indexer berjalan dan tersinkron. Anda sudah bisa membuat Ordinals dan Token.",
+    "loadError": "Gagal memuat data token. Silakan coba lagi nanti.",
+    "inscribeNow": "Tulis sekarang"
+  },
+  "ordinals": {
+    "title": "Ordinals",
+    "none": "Belum ada inscription",
+    "createNew": "Inscription Baru",
+    "createFirst": "Buat inscription pertama Anda",
+    "details": "Detail Inscription",
+    "contentType": "Tipe Konten",
+    "dataSize": "Ukuran Data",
+    "owner": "Pemilik",
+    "transactions": "Transaksi",
+    "date": "Tanggal",
+    "transfer": "Kirim Ordinal",
+    "transferTo": "Kirim ke alamat",
+    "transferPlaceholder": "Masukkan alamat B1T",
+    "cancel": "Batal",
+    "sending": "Mengirim...",
+    "confirmTransfer": "Kirim",
+    "transferSuccess": "Ordinal terkirim! TXID: {{txid}}",
+    "transferError": "Error: {{message}}",
+    "newDiscovered": "Ordinal Baru Ditemukan!",
+    "newDiscoveredDesc": "{{count}} ordinal baru ditemukan untuk dompet Anda.",
+    "viewOrdinals": "Lihat Ordinals",
+    "dismiss": "Tutup"
+  },
+  "inscribe": {
+    "title": "Tulis",
+    "subtitle": "Tulis Ordinals & Token di blockchain B1T",
+    "tabImage": "Gambar / Ordinal",
+    "tabToken": "Token / Teks",
+    "dropzone": "Seret gambar ke sini atau klik",
+    "dropzoneFormats": "PNG, JPG, WebP, GIF",
+    "preview": "Pratinjau",
+    "original": "Asli",
+    "compressed": "Terkompresi (WebP)",
+    "quality": "Kualitas",
+    "formMode": "Formulir",
+    "rawMode": "Manual (JSON)",
+    "operation": "Operasi",
+    "opDeploy": "Deploy",
+    "opDeployDesc": "Buat token baru",
+    "opMint": "Mint",
+    "opMintDesc": "Cetak token",
+    "opTransfer": "Transfer",
+    "opTransferDesc": "Transfer token",
+    "ticker": "Ticker Token",
+    "settings": "Pengaturan",
+    "success": "Penulisan berhasil!",
+    "walletLocked": "Dompet terkunci",
+    "preparing": "Mempersiapkan penulisan...",
+    "dontClose": "Jangan tutup jendela ini!",
+    "dontCloseDesc": "Menutup jendela akan menghentikan proses penulisan.",
+    "waitingForBlock": "Menunggu konfirmasi blok...",
+    "waitingForTx": "Menunggu TX",
+    "avgBlockTime": "Waktu blok rata-rata: ~1 menit",
+    "processingBatch": "Memproses batch {{current}} dari {{total}}...",
+    "broadcastingTx": "Menyiarkan transaksi {{current}} dari {{total}}...",
+    "transactions": "Transaksi",
+    "batch": "Batch",
+    "tx": "Tx",
+    "totalTxLabel": "Total Transaksi",
+    "totalBatchesLabel": "Total Batch",
+    "resultTxid": "TXID Penulisan",
+    "resultTxCount": "Transaksi",
+    "resultContentType": "Tipe Konten",
+    "resultDataSize": "Ukuran Data",
+    "showAllTx": "Tampilkan semua transaksi"
+  },
+  "mine": {
+    "title": "Easy Rabb1t Miner (Lite)",
+    "subtitle": "Tambang RABB1TS dengan menemukan ID transaksi yang dimulai dengan nol",
+    "liteNotice": "Versi web dengan kinerja terbatas",
+    "liteNoticeDesc": "Penambang berbasis browser ini menggunakan panggilan RPC dan dibatasi oleh latensi jaringan. Untuk hashrate maksimum, penambang desktop native (segera hadir) akan jauh lebih cepat.",
+    "walletLocked": "Dompet terkunci",
+    "walletLockedDesc": "Silakan buka kunci dompet Anda untuk mengakses Rabb1ts Miner.",
+    "config": "Konfigurasi penambangan",
+    "selectUtxo": "Pilih UTXO",
+    "refresh": "Segarkan",
+    "startMining": "Mulai menambang ({{count}} inti)",
+    "stopMiner": "Hentikan penambang",
+    "statusMining": "MENAMBANG",
+    "statusIdle": "SIAP"
+  },
+  "mempool": {
+    "title": "Mempool",
+    "status": "Status",
+    "refresh": "Segarkan",
+    "loading": "Memuat...",
+    "size": "Ukuran",
+    "bytes": "Byte",
+    "usage": "Penggunaan",
+    "minFee": "Biaya minimum",
+    "txids": "TxIDs",
+    "none": "Tidak ada transaksi mempool.",
+    "raw": "RAW",
+    "loadingTx": "Memuat transaksi...",
+    "selectPrompt": "Pilih TXID di kiri untuk melihat detail.",
+    "verbose": "Verbose",
+    "searchPlaceholder": "Cari TXID...",
+    "fee": "Biaya",
+    "feeRate": "Tingkat biaya",
+    "satVB": "sat/vB",
+    "time": "Waktu",
+    "ancestors": "Leluhur",
+    "descendants": "Keturunan",
+    "replaceable": "Dapat diganti",
+    "openExplorer": "Buka di Explorer",
+    "toast": {
+      "incoming": "Pembayaran masuk terdeteksi: +{{delta}} B1T ke alamat #{{index}}"
+    }
+  },
+  "importWallet": {
+    "title": "Impor Dompet",
+    "step1Desc": "Masukkan frase pemulihan 12 atau 24 kata Anda",
+    "step2Desc": "Atur Kata Sandi",
+    "securityNote": "Pemberitahuan Keamanan",
+    "securityDesc": "Frase Anda hanya diproses secara lokal di browser dan disimpan terenkripsi. Ini tidak pernah dikirim ke server.",
+    "seedLabel": "Frase Pemulihan (12 atau 24 kata)",
+    "seedPlaceholder": "kata1 kata2 kata3 ...",
+    "pasteFromClipboard": "Tempel dari Clipboard",
+    "setPassword": "Atur Kata Sandi Dompet",
+    "setPasswordDesc": "Kata sandi ini mengenkripsi frase Anda secara lokal di browser. Anda akan membutuhkannya setiap kali untuk membuka dompet.",
+    "passwordPlaceholder": "Kata Sandi (min. 6 karakter)",
+    "passwordConfirmPlaceholder": "Konfirmasi Kata Sandi",
+    "passwordTooShort": "Kata sandi harus minimal 6 karakter",
+    "passwordMismatch": "Kata sandi tidak cocok",
+    "importing": "Mengimpor...",
+    "import": "Impor Dompet",
+    "invalidSeed": "Frase Pemulihan Tidak Valid",
+    "success": "Dompet berhasil diimpor!",
+    "error": "Kesalahan",
+    "pasted": "Ditempel dari clipboard",
+    "pasteFailed": "Akses clipboard gagal",
+    "back": "Kembali",
+    "continue": "Lanjutkan"
+  },
+  "receive": {
+    "title": "Terima B1T",
+    "subtitle": "Bagikan alamat atau kode QR ini untuk menerima B1T",
+    "selectAddress": "Pilih Alamat",
+    "yourAddress": "Alamat Anda",
+    "copied": "Alamat disalin!",
+    "copiedBtn": "Disalin",
+    "copyBtn": "Salin",
+    "downloadQR": "Unduh Kode QR",
+    "qrDownloaded": "Kode QR diunduh!"
+  },
+  "send": {
+    "title": "Kirim B1T",
+    "available": "Tersedia",
+    "fromLabel": "Alamat pengirim",
+    "onlyFundedLabel": "Hanya tampilkan alamat dengan saldo",
+    "allOption": "Semua alamat · Total: {{sum}} B1T",
+    "recipientLabel": "Alamat penerima",
+    "recipientPlaceholder": "Masukkan alamat B1T",
+    "amountLabel": "Jumlah (B1T)",
+    "amountPlaceholder": "0.00000000",
+    "max": "MAKS",
+    "feeLabel": "Biaya jaringan (B1T)",
+    "feeSuggestionMinimum": "Saran: {{suggested}} · Minimum: {{min}}",
+    "cautionCover": "Pastikan jumlah ditambah biaya ditanggung oleh saldo yang tersedia.",
+    "cautionIrreversible": "Transaksi tidak dapat dibatalkan!",
+    "submit": "Kirim B1T",
+    "submitting": "Mengirim transaksi...",
+    "addrItem": "#{{i}} · {{short}} · {{balance}} B1T",
+    "toast": {
+      "sent": "Transaksi terkirim! TXID: {{txid}}",
+      "noAddress": "Alamat tidak ditemukan",
+      "locked": "Dompet terkunci. Silakan impor ulang.",
+      "invalidAmount": "Jumlah tidak valid",
+      "insufficient": "Saldo tidak mencukupi",
+      "genericError": "Kesalahan: {{message}}"
+    }
+  },
+  "explorer": {
+    "searchPlaceholder": "Alamat, TXID, hash blok atau ketinggian",
+    "search": "Cari",
+    "latestBlocks": "Blok Terbaru",
+    "summary": "Ringkasan",
+    "rawTitle": "Hasil Mentah",
+    "details": "Detail",
+    "address": "Alamat",
+    "sent": "Terkirim",
+    "received": "Diterima",
+    "txCount": "Jumlah Tx",
+    "inputs": "Input",
+    "outputs": "Output",
+    "amount": "Jumlah",
+    "from": "Dari",
+    "to": "Ke",
+    "coinbase": "Coinbase",
+    "newBlock": "Blok Baru",
+    "fee": "Biaya",
+    "block": "Blok",
+    "height": "Ketinggian",
+    "time": "Waktu",
+    "hash": "Hash",
+    "open": "Buka",
+    "copySuccess": "Disalin!"
+  },
+  "common": {
+    "notAvailable": "T/A"
+  },
+  "addresses": {
+    "title": "Alamat",
+    "subtitle": "Kelola alamat dompet Anda",
+    "allAddresses": "Semua alamat",
+    "refresh": "Segarkan",
+    "active": "Aktif",
+    "balance": "Saldo",
+    "use": "Gunakan",
+    "none": "Tidak ada alamat ditemukan",
+    "deriveMore": "Dapatkan lebih banyak alamat",
+    "deriving": "Mendapatkan...",
+    "copied": "Alamat disalin!",
+    "derived": "{{count}} alamat baru didapat",
+    "walletLocked": "Dompet terkunci.",
+    "deriveError": "Kesalahan mendapatkan alamat",
+    "autoActivated": "Alamat dengan saldo otomatis diaktifkan",
+    "loadFailed": "Gagal memuat saldo"
+  }
+}

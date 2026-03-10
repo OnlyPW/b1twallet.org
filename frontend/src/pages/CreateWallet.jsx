@@ -31,8 +31,10 @@ export default function CreateWallet() {
     setMnemonic(m);
     const words = m.split(' ');
     const indices = [];
+    const randomValues = crypto.getRandomValues(new Uint32Array(12));
+    let randomIndex = 0;
     while (indices.length < 3) {
-      const r = Math.floor(Math.random() * words.length);
+      const r = randomValues[randomIndex++ % randomValues.length] % words.length;
       if (!indices.includes(r)) indices.push(r);
     }
     setVerificationWords(indices.sort((a, b) => a - b));

@@ -25,7 +25,9 @@ export function validateMnemonic(mnemonic) {
 }
 
 export function generateMnemonic(strength = 128) {
-  return bip39.generateMnemonic(strength);
+  // Use cryptographically secure random number generation
+  const randomBytes = crypto.getRandomValues(new Uint8Array(strength / 8));
+  return bip39.entropyToMnemonic(Buffer.from(randomBytes).toString('hex'));
 }
 
 function deriveChild(mnemonic, index, change = 0) {

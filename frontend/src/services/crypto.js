@@ -5,7 +5,7 @@
 
 const SALT_LEN = 16;
 const IV_LEN = 12;
-const ITERATIONS = 600000;
+const ITERATIONS = 1000000;
 
 async function deriveKey(password, salt) {
   const enc = new TextEncoder();

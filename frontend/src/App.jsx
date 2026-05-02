@@ -12,6 +12,7 @@ import Mempool from './pages/Mempool';
 import Addresses from './pages/Addresses';
 import MineRabb1ts from './pages/MineRabb1ts';
 import Inscribe from './pages/Inscribe';
+import Names from './pages/Names';
 import './App.css';
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
           <Route path="addresses" element={<Addresses />} />
           <Route path="mine" element={<MineRabb1ts />} />
           <Route path="inscribe" element={<Inscribe />} />
+          <Route path="names" element={<Names />} />
           <Route path="explorer" element={<Explorer />} />
           <Route path="mempool" element={<Mempool />} />
         </Route>

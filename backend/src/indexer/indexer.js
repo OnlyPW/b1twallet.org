@@ -1,5 +1,8 @@
 import rpcClient from '../services/rpcClient.js';
-import { initSchema, getTipHeight, insertBlock, insertTransactionsBulk, insertOutputsBulk, markOutputSpent, getPool } from '../services/db.js';
+import { initSchema, getTipHeight, insertBlock, insertTransactionsBulk, insertOutputsBulk, markOutputSpent, getPool, upsertNickname, updateNicknameStatuses } from '../services/db.js';
+import { parseNicknameOpFromHex } from '../routes/nicknames.js';
+
+const NICKNAME_ACTIVATION_HEIGHT = 400000;
 
 // Batch-Größe aus Umgebung (INDEXER_BATCH_SIZE); Fallback 1000 nur wenn nicht in .env/docker gesetzt
 const BATCH_SIZE = Math.max(1, parseInt(process.env.INDEXER_BATCH_SIZE || '1000', 10));
@@ -56,6 +59,41 @@ async function processBlockData(height, block, client) {
       if (prevTxid !== undefined && prevVout !== undefined) {
         await markOutputSpent(prevTxid, prevVout, tx.txid, height, client);
       }
+    }
+  }
+
+  // Nickname-Operationen parsen (ab Block 400000)
+  if (height >= NICKNAME_ACTIVATION_HEIGHT) {
+    for (const tx of txs) {
+      for (const vout of tx.vout || []) {
+        const spk = vout.scriptPubKey || {};
+        const hex = spk.hex || '';
+        if (!hex || !hex.startsWith('6a')) continue; // 6a = OP_RETURN
+
+        const parsed = parseNicknameOpFromHex(hex);
+        if (!parsed) continue;
+
+        try {
+          await upsertNickname({
+            opType: parsed.opType,
+            nickname: parsed.nickname,
+            ownerPubKey: parsed.ownerPubKey || null,
+            payoutAddress: parsed.payoutAddress || null,
+            newOwnerPubKey: parsed.newOwnerPubKey || null,
+            txid: tx.txid,
+            height: height,
+          }, client);
+        } catch (e) {
+          console.error(`Nickname parse error at block ${height}, tx ${tx.txid}:`, e.message);
+        }
+      }
+    }
+
+    // Update nickname statuses (expire, grace period, etc.)
+    try {
+      await updateNicknameStatuses(height, client);
+    } catch (e) {
+      console.error(`Nickname status update error at block ${height}:`, e.message);
     }
   }
 }

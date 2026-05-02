@@ -7,6 +7,7 @@ import walletRoutes from './routes/wallet.js';
 import explorerRoutes from './routes/explorer.js';
 import mempoolRoutes from './routes/mempool.js';
 import ordinalsRoutes from './routes/ordinals.js';
+import nicknameRoutes from './routes/nicknames.js';
 import rpcClient from './services/rpcClient.js';
 import { initSchema, getTipHeight } from './services/db.js';
 import { startIndexer } from './indexer/indexer.js';
@@ -150,6 +151,7 @@ app.get('/api/indexer-status', async (req, res) => {
 app.use('/api/wallet', walletRoutes);
 app.use('/api/explorer', explorerRoutes);
 app.use('/api/mempool', mempoolRoutes);
+app.use('/api/nicknames', nicknameRoutes);
 
 // Error Handler
 app.use((err, req, res, next) => {

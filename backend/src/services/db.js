@@ -100,6 +100,29 @@ export async function initSchema() {
       CREATE INDEX IF NOT EXISTS idx_inscriptions_source ON inscriptions(source);
     `);
 
+    // Nicknames (on-chain name registry)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nicknames (
+        nickname TEXT PRIMARY KEY,
+        owner_pubkey TEXT NOT NULL,
+        payout_address TEXT NOT NULL,
+        registration_height INTEGER NOT NULL,
+        active_until_height INTEGER NOT NULL,
+        grace_until_height INTEGER NOT NULL,
+        bond_amount_satoshi BIGINT DEFAULT 0,
+        bond_txid TEXT,
+        bond_vout INTEGER,
+        last_update_txid TEXT NOT NULL,
+        released BOOLEAN DEFAULT FALSE,
+        bond_claimed BOOLEAN DEFAULT FALSE,
+        status TEXT DEFAULT 'ACTIVE',
+        created_at BIGINT,
+        updated_at BIGINT
+      );
+      CREATE INDEX IF NOT EXISTS idx_nicknames_status ON nicknames(status);
+      CREATE INDEX IF NOT EXISTS idx_nicknames_owner ON nicknames(owner_pubkey);
+    `);
+
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
@@ -295,4 +318,140 @@ export async function insertOutputsBulk(rows, dbClient = null) {
   });
 }
 
-export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock, insertTransactionsBulk, insertOutputsBulk, getWatchedAddresses, upsertReceivedInscription, updateInscriptionOwner, getInscriptionByOrdId };
+// ─── Nickname DB Functions ───
+
+export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddress, newOwnerPubKey, txid, height }, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    const now = Math.floor(Date.now() / 1000);
+
+    switch (opType) {
+      case 1: { // REGISTER
+        // Check if already registered and still active
+        const existing = await client.query(
+          "SELECT status FROM nicknames WHERE nickname = $1", [nickname]
+        );
+        if (existing.rows.length > 0 && ['ACTIVE', 'EXPIRED_GRACE'].includes(existing.rows[0].status)) {
+          return; // Already registered, skip
+        }
+
+        await client.query(`
+          INSERT INTO nicknames (nickname, owner_pubkey, payout_address,
+            registration_height, active_until_height, grace_until_height,
+            bond_amount_satoshi, last_update_txid, status, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, 0, $7, 'ACTIVE', $8, $8)
+          ON CONFLICT (nickname) DO UPDATE SET
+            owner_pubkey = EXCLUDED.owner_pubkey,
+            payout_address = EXCLUDED.payout_address,
+            registration_height = EXCLUDED.registration_height,
+            active_until_height = EXCLUDED.active_until_height,
+            grace_until_height = EXCLUDED.grace_until_height,
+            bond_amount_satoshi = EXCLUDED.bond_amount_satoshi,
+            last_update_txid = EXCLUDED.last_update_txid,
+            status = 'ACTIVE',
+            released = FALSE,
+            bond_claimed = FALSE,
+            updated_at = EXCLUDED.updated_at
+        `, [nickname, ownerPubKey, payoutAddress,
+            height, height + 144000, height + 144000 + 14400,
+            txid, now]);
+        break;
+      }
+
+      case 2: // UPDATE
+        await client.query(`
+          UPDATE nicknames SET
+            payout_address = $1,
+            last_update_txid = $2,
+            updated_at = $3
+          WHERE nickname = $4
+        `, [payoutAddress, txid, now, nickname]);
+        break;
+
+      case 3: // TRANSFER
+        await client.query(`
+          UPDATE nicknames SET
+            owner_pubkey = $1,
+            last_update_txid = $2,
+            updated_at = $3
+          WHERE nickname = $4
+        `, [newOwnerPubKey, txid, now, nickname]);
+        break;
+
+      case 4: // RENEW
+        await client.query(`
+          UPDATE nicknames SET
+            active_until_height = active_until_height + 144000,
+            grace_until_height = grace_until_height + 144000,
+            last_update_txid = $1,
+            updated_at = $2
+          WHERE nickname = $3
+        `, [txid, now, nickname]);
+        break;
+
+      case 5: // RELEASE
+        await client.query(`
+          UPDATE nicknames SET
+            released = TRUE,
+            status = 'RELEASED',
+            last_update_txid = $1,
+            updated_at = $2
+          WHERE nickname = $3
+        `, [txid, now, nickname]);
+        break;
+
+      case 6: // CLAIM_BOND
+        await client.query(`
+          UPDATE nicknames SET
+            bond_claimed = TRUE,
+            last_update_txid = $1,
+            updated_at = $2
+          WHERE nickname = $3
+        `, [txid, now, nickname]);
+        break;
+    }
+  });
+}
+
+export async function updateNicknameStatuses(height, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    // ACTIVE → EXPIRED_GRACE
+    await client.query(
+      "UPDATE nicknames SET status = 'EXPIRED_GRACE' WHERE status = 'ACTIVE' AND active_until_height < $1",
+      [height]
+    );
+    // EXPIRED_GRACE → BOND_CLAIMABLE (not released, bond not claimed)
+    await client.query(
+      "UPDATE nicknames SET status = 'BOND_CLAIMABLE' WHERE status = 'EXPIRED_GRACE' AND grace_until_height < $1 AND released = FALSE AND bond_claimed = FALSE",
+      [height]
+    );
+    // EXPIRED_GRACE → EXPIRED_AVAILABLE (bond already claimed)
+    await client.query(
+      "UPDATE nicknames SET status = 'EXPIRED_AVAILABLE' WHERE status = 'EXPIRED_GRACE' AND grace_until_height < $1 AND bond_claimed = TRUE",
+      [height]
+    );
+    // BOND_CLAIMABLE → EXPIRED_AVAILABLE (after bond is claimed)
+    await client.query(
+      "UPDATE nicknames SET status = 'EXPIRED_AVAILABLE' WHERE status = 'BOND_CLAIMABLE' AND bond_claimed = TRUE",
+      [height]
+    );
+  });
+}
+
+export async function getNicknameByName(name, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    const { rows } = await client.query('SELECT * FROM nicknames WHERE nickname = $1', [name]);
+    return rows[0] || null;
+  });
+}
+
+export async function listNicknamesFromDb(start = '', limit = 50, dbClient = null) {
+  return withClient(dbClient, async (client) => {
+    const { rows } = await client.query(
+      'SELECT * FROM nicknames WHERE nickname >= $1 ORDER BY nickname LIMIT $2',
+      [start, limit]
+    );
+    return rows;
+  });
+}
+
+export default { getPool, initSchema, getTipHeight, upsertAddressStats, markOutputSpent, insertOutput, insertTransaction, insertBlock, insertTransactionsBulk, insertOutputsBulk, getWatchedAddresses, upsertReceivedInscription, updateInscriptionOwner, getInscriptionByOrdId, upsertNickname, updateNicknameStatuses, getNicknameByName, listNicknamesFromDb };

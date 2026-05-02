@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Send as SendIcon, AlertCircle } from 'lucide-react';
+import { Send as SendIcon, AlertCircle, AtSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { walletApi } from '../services/api';
 import useWalletStore from '../store/walletStore';
@@ -22,6 +22,55 @@ export default function Send() {
   const [availableBalance, setAvailableBalance] = useState(0);
   const [balances, setBalances] = useState([]); // pro Adresse
   const [onlyFunded, setOnlyFunded] = useState(false);
+  const [resolvedNickname, setResolvedNickname] = useState(null);
+  const [resolvingNickname, setResolvingNickname] = useState(false);
+
+  // Resolve @name when input changes
+  const resolveNickname = useCallback(async (input) => {
+    const trimmed = input.trim();
+    if (!trimmed.startsWith('@') && !trimmed.match(/^[a-z0-9_]{4,16}$/i)) {
+      setResolvedNickname(null);
+      return;
+    }
+
+    let name = trimmed.toLowerCase();
+    if (name.startsWith('@')) name = name.slice(1);
+
+    if (name.length < 4 || name.length > 16) {
+      setResolvedNickname(null);
+      return;
+    }
+
+    setResolvingNickname(true);
+    try {
+      const result = await walletApi.resolveNickname(name);
+      if (result.success && result.resolves && result.payout_address) {
+        setResolvedNickname({
+          name: result.nickname || name,
+          address: result.payout_address,
+          status: result.status,
+        });
+      } else {
+        setResolvedNickname({ name, address: null, status: 'NOT_FOUND' });
+      }
+    } catch {
+      setResolvedNickname(null);
+    } finally {
+      setResolvingNickname(false);
+    }
+  }, []);
+
+  // Debounced nickname resolution
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (toAddress.trim().startsWith('@') || toAddress.trim().match(/^[a-z0-9_]{4,16}$/i)) {
+        resolveNickname(toAddress);
+      } else {
+        setResolvedNickname(null);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [toAddress, resolveNickname]);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -92,6 +141,25 @@ export default function Send() {
 
   const handleSend = async (e) => {
     e.preventDefault();
+
+    // Resolve nickname if needed
+    let resolvedAddr = toAddress.trim();
+    if (resolvedAddr.startsWith('@') || resolvedAddr.match(/^[a-z0-9_]{4,16}$/i)) {
+      let name = resolvedAddr.toLowerCase();
+      if (name.startsWith('@')) name = name.slice(1);
+      try {
+        const result = await walletApi.resolveNickname(name);
+        if (result.success && result.resolves && result.payout_address) {
+          resolvedAddr = result.payout_address;
+        } else {
+          toast.error(`Nickname "${name}" not found or not active`);
+          return;
+        }
+      } catch {
+        toast.error('Failed to resolve nickname');
+        return;
+      }
+    }
     
     const addrList = addresses || [];
     const selectedAddr = addrList?.[fromIndex] || getCurrentAddress();
@@ -140,7 +208,7 @@ export default function Send() {
           wifs,
           useAll: true,
           fromAddresses,
-          toAddress,
+          toAddress: resolvedAddr,
           amount: amountNum,
           fee,
           changeIndex: (addresses || [])[0]?.index ?? 0,
@@ -149,7 +217,7 @@ export default function Send() {
         response = await walletApi.sendTransaction({
           wif,
           fromAddress: selectedAddr.address,
-          toAddress,
+          toAddress: resolvedAddr,
           amount: amountNum,
           fee,
         });
@@ -228,14 +296,57 @@ export default function Send() {
 
             <div>
               <label className="block text-sm font-semibold mb-2">{t('send.recipientLabel')}</label>
-              <input
-                type="text"
-                value={toAddress}
-                onChange={(e) => setToAddress(e.target.value)}
-                placeholder={t('send.recipientPlaceholder')}
-                className="input font-mono"
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={toAddress}
+                  onChange={(e) => setToAddress(e.target.value)}
+                  placeholder={t('send.recipientPlaceholder') + ' or @nickname'}
+                  className="input font-mono"
+                  required
+                />
+                {resolvingNickname && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {/* Nickname Resolution Result */}
+              {resolvedNickname && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`mt-2 p-3 rounded-lg border text-sm ${
+                    resolvedNickname.address
+                      ? 'bg-green-500/10 border-green-500/30 text-green-300'
+                      : 'bg-red-500/10 border-red-500/30 text-red-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <AtSign className="w-4 h-4" />
+                    <span className="font-semibold">@{resolvedNickname.name}</span>
+                    {resolvedNickname.status && (
+                      <span className="text-xs opacity-70">({resolvedNickname.status})</span>
+                    )}
+                  </div>
+                  {resolvedNickname.address ? (
+                    <div className="mt-1">
+                      <span className="text-xs text-gray-400">Resolves to: </span>
+                      <span className="font-mono text-xs break-all">{resolvedNickname.address}</span>
+                      <button
+                        type="button"
+                        onClick={() => { setToAddress(resolvedNickname.address); setResolvedNickname(null); }}
+                        className="ml-2 text-xs text-[#FF6B00] hover:underline"
+                      >
+                        Use address
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs mt-1">Nickname not found or not active</div>
+                  )}
+                </motion.div>
+              )}
             </div>
 
             <div>

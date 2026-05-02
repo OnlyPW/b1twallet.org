@@ -178,6 +178,32 @@ export const walletApi = {
 
   mineRabb1tsAttempt: (data) =>
     api.post('/api/wallet/rabb1ts/mine-attempt', data, { timeout: 60000 }), // 1 min timeout
+
+  // Nicknames
+  checkNickname: (name) =>
+    api.get(`/api/nicknames/check/${encodeURIComponent(name)}`),
+  getNicknameInfo: (name) =>
+    api.get(`/api/nicknames/info/${encodeURIComponent(name)}`),
+  resolveNickname: (name) =>
+    api.get(`/api/nicknames/resolve/${encodeURIComponent(name)}`),
+  listNicknames: (params = {}) =>
+    api.get('/api/nicknames/list', { params }),
+  registerNickname: (data) =>
+    api.post('/api/nicknames/register', data),
+  updateNickname: (data) =>
+    api.post('/api/nicknames/update', data),
+  transferNickname: (data) =>
+    api.post('/api/nicknames/transfer', data),
+  renewNickname: (data) =>
+    api.post('/api/nicknames/renew', data),
+  releaseNickname: (data) =>
+    api.post('/api/nicknames/release', data),
+  claimNicknameBond: (data) =>
+    api.post('/api/nicknames/claim-bond', data),
+  sendToNickname: (data) =>
+    api.post('/api/nicknames/send', data),
+  getBlockchainStatus: () =>
+    api.get('/api/blockchain/status'),
 };
 
 // Health Check
@@ -213,6 +239,21 @@ export const mempoolApi = {
   getList: (limit = 500, verbose = false) => api.get('/api/mempool/list', { params: { limit, verbose } }),
   getTx: (txid) => api.get(`/api/mempool/tx/${txid}`),
   getEntry: (txid) => api.get(`/api/mempool/entry/${txid}`),
+};
+
+// Nicknames API
+export const nicknamesApi = {
+  check: (name) => api.get(`/api/nicknames/check/${encodeURIComponent(name)}`),
+  getInfo: (name) => api.get(`/api/nicknames/info/${encodeURIComponent(name)}`),
+  resolve: (name) => api.get(`/api/nicknames/resolve/${encodeURIComponent(name)}`),
+  list: (params = {}) => api.get('/api/nicknames/list', { params }),
+  register: (data) => api.post('/api/nicknames/register', data),
+  update: (data) => api.post('/api/nicknames/update', data),
+  transfer: (data) => api.post('/api/nicknames/transfer', data),
+  renew: (data) => api.post('/api/nicknames/renew', data),
+  release: (data) => api.post('/api/nicknames/release', data),
+  claimBond: (data) => api.post('/api/nicknames/claim-bond', data),
+  send: (data) => api.post('/api/nicknames/send', data),
 };
 
 export const remoteLog = (level, message, data) =>

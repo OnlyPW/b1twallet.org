@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Send as SendIcon, AlertCircle, AtSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { walletApi } from '../services/api';
@@ -9,9 +9,10 @@ import { useTranslation } from 'react-i18next';
 
 export default function Send() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isUnlocked, getCurrentAddress, addresses, currentAddressIndex, setCurrentAddress, getWIF } = useWalletStore();
   const { t } = useTranslation();
-  
+
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [fee, setFee] = useState(0.0001);
@@ -80,6 +81,12 @@ export default function Send() {
     setFromIndex(currentAddressIndex || 0);
     loadFeeEstimate();
   }, [isUnlocked, navigate]);
+
+  // Pre-fill the recipient from ?to=@name (e.g. when coming from the B1T Names page)
+  useEffect(() => {
+    const to = searchParams.get('to');
+    if (to) setToAddress(to);
+  }, [searchParams]);
 
   // Lade Salden für alle Adressen (zur Anzeige im Dropdown)
   useEffect(() => {

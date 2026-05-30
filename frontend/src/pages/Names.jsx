@@ -5,6 +5,7 @@ import {
   Repeat, Edit3, ArrowRightLeft, LogOut, Coins, X, Wallet, CheckCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { walletApi } from '../services/api';
 import useWalletStore from '../store/walletStore';
@@ -268,6 +269,7 @@ function ModalActions({ busy, onCancel, onConfirm, confirmLabel, danger }) {
 // ─────────────────────────────────────────────────────────────
 export default function Names() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { isUnlocked, addresses, currentAddressIndex, getWIF, getWalletPubkeys } = useWalletStore();
 
   const [activeTab, setActiveTab] = useState('search'); // search | mine | browse
@@ -292,12 +294,6 @@ export default function Names() {
   // Browse
   const [allNames, setAllNames] = useState([]);
   const [browseLoading, setBrowseLoading] = useState(false);
-
-  // Send
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [sendAmount, setSendAmount] = useState('');
-  const [sendNickname, setSendNickname] = useState('');
-  const [sendLoading, setSendLoading] = useState(false);
 
   useEffect(() => {
     const fetchHeight = async () => {
@@ -410,33 +406,6 @@ export default function Names() {
     }
   };
 
-  // ── Send to nickname ──
-  const handleSendToNickname = async () => {
-    if (!isUnlocked || !sendNickname || !sendAmount) return;
-    const amount = parseFloat(sendAmount);
-    if (isNaN(amount) || amount <= 0) { toast.error('Invalid amount'); return; }
-    const owner = addresses?.[currentAddressIndex || 0] || addresses?.[0];
-    if (!owner) { toast.error('No wallet address'); return; }
-    const wif = getWIF(owner.index);
-    if (!wif) { toast.error('Wallet locked'); return; }
-
-    setSendLoading(true);
-    try {
-      const result = await walletApi.sendToNickname({ wif, nickname: sendNickname, amount, fromAddress: owner.address });
-      if (result.success) {
-        toast.success(`Sent ${amount} B1T to @${sendNickname} — ${String(result.txid).slice(0, 10)}…`);
-        setSendDialogOpen(false);
-        setSendAmount('');
-      } else {
-        toast.error(result.error || 'Send failed');
-      }
-    } catch (e) {
-      toast.error('Send error: ' + e.message);
-    } finally {
-      setSendLoading(false);
-    }
-  };
-
   // ── My names ──
   const loadMyNames = useCallback(async () => {
     if (!isUnlocked) return;
@@ -470,7 +439,9 @@ export default function Names() {
     if (activeTab === 'mine') loadMyNames();
   }, [activeTab, loadAllNames, loadMyNames]);
 
-  const openSend = (name) => { setSendNickname(name); setSendAmount(''); setSendDialogOpen(true); };
+  // Jump to the full Send page with the nickname pre-filled as recipient (it resolves @names,
+  // lets you pick the from-address, fee, etc. — the same proven flow as a normal send).
+  const openSend = (name) => navigate(`/send?to=${encodeURIComponent('@' + name)}`);
 
   const Tab = ({ id, label, icon: Icon }) => (
     <button
@@ -726,17 +697,6 @@ export default function Names() {
           )}
         </AnimatePresence>
 
-        {/* Send dialog */}
-        <AnimatePresence>
-          {sendDialogOpen && (
-            <ModalShell title={`Send to @${sendNickname}`} onClose={() => setSendDialogOpen(false)}>
-              <input type="number" value={sendAmount} onChange={e => setSendAmount(e.target.value)}
-                placeholder="Amount in B1T" step="0.00000001" min="0"
-                className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6B00] mb-4" />
-              <ModalActions busy={sendLoading} onCancel={() => setSendDialogOpen(false)} onConfirm={handleSendToNickname} confirmLabel="Send" />
-            </ModalShell>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );

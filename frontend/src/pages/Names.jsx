@@ -283,6 +283,7 @@ export default function Names() {
   const [registerLoading, setRegisterLoading] = useState(false);
   const [ownerIndex, setOwnerIndex] = useState(currentAddressIndex || 0);
   const [payoutAddress, setPayoutAddress] = useState('');
+  const [ownerBalance, setOwnerBalance] = useState(null);
 
   // My names
   const [myNames, setMyNames] = useState([]);
@@ -358,6 +359,19 @@ export default function Names() {
       setSearchLoading(false);
     }
   }, [searchInput]);
+
+  // Load the balance of the selected owner address while the register dialog is open.
+  useEffect(() => {
+    if (!registerOpen) return;
+    const addr = addresses?.[ownerIndex]?.address;
+    if (!addr) { setOwnerBalance(null); return; }
+    let cancelled = false;
+    setOwnerBalance(null);
+    walletApi.getBalance(addr)
+      .then(res => { if (!cancelled) setOwnerBalance(Number(res.balance ?? res?.balances?.available ?? res?.balances?.confirmed ?? 0) || 0); })
+      .catch(() => { if (!cancelled) setOwnerBalance(null); });
+    return () => { cancelled = true; };
+  }, [registerOpen, ownerIndex, addresses]);
 
   // ── Register ──
   const openRegister = () => {
@@ -685,6 +699,16 @@ export default function Names() {
                   <option key={a.index} value={a.index}>#{a.index} — {shortAddr(a.address)}</option>
                 ))}
               </select>
+
+              {ownerBalance !== null && (() => {
+                const need = Number(searchResult.registrationFee) + Number(searchResult.bondFee);
+                const short = ownerBalance < need;
+                return (
+                  <div className={`text-xs mb-3 ${short ? 'text-red-400' : 'text-green-400'}`}>
+                    Balance of this address: {ownerBalance.toFixed(4)} B1T{short ? ` — not enough for ${need.toFixed(2)} B1T (fee + bond)` : ' ✓'}
+                  </div>
+                );
+              })()}
 
               <label className="block text-xs text-gray-400 mb-1">Payout address (resolved by the name)</label>
               <input value={payoutAddress} onChange={e => setPayoutAddress(e.target.value)}

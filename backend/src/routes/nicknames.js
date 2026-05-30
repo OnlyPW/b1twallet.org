@@ -1,5 +1,6 @@
 import express from 'express';
 import rpcClient from '../services/rpcClient.js';
+import dbWallet from '../services/dbWallet.js';
 import { getPool, getTipHeight } from '../services/db.js';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
@@ -375,12 +376,19 @@ function feeForSize(numInputs, numOutputs, payloadLen, feeCtx) {
     return Math.max(Math.ceil(estimateVsize(numInputs, numOutputs, payloadLen) * feeCtx.ratePerByte), feeCtx.minSats);
 }
 
-// Get spendable P2PKH UTXOs for an address (largest first). Bond P2PK UTXOs never appear here
-// because they have no standard address and are not returned by scantxoutset addr() queries.
+// Get spendable P2PKH UTXOs for an address (largest first), using the SAME source order as the
+// normal Send route: indexer DB first (fast/reliable), then RPC (scantxoutset → listunspent →
+// explorer). Bond P2PK UTXOs never appear here — they have no standard address.
 async function getSpendableUtxos(address) {
-    const utxos = await rpcClient.getAddressUtxos(address);
-    if (!Array.isArray(utxos)) return [];
-    return utxos
+    const useIndexer = String(process.env.INDEXER_ENABLED || 'true').toLowerCase() === 'true';
+    let utxos = [];
+    if (useIndexer) {
+        try { utxos = await dbWallet.getAddressUtxos(address); } catch { utxos = []; }
+    }
+    if (!Array.isArray(utxos) || utxos.length === 0) {
+        try { utxos = await rpcClient.getAddressUtxos(address); } catch { utxos = []; }
+    }
+    return (utxos || [])
         .filter(u => Number(u.satoshis) > 0)
         .sort((a, b) => b.satoshis - a.satoshis);
 }
@@ -487,8 +495,12 @@ async function buildNicknameTransaction({
     }
 
     if (!satisfied) {
-        const err = new Error('Insufficient balance to fund nickname operation');
-        err.details = { required: fundTarget / COIN, available: selectedTotal / COIN, networkFee: netFee / COIN };
+        const err = new Error(
+            `Insufficient spendable balance on ${ownerAddress}: need ~${(fundTarget / COIN).toFixed(4)} B1T ` +
+            `but found ${(selectedTotal / COIN).toFixed(4)} B1T in ${candidates.length} UTXO(s). ` +
+            `Ensure the deposit is confirmed and on this address.`
+        );
+        err.details = { address: ownerAddress, required: fundTarget / COIN, available: selectedTotal / COIN, utxoCount: candidates.length, networkFee: netFee / COIN };
         throw err;
     }
 

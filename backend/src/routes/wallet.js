@@ -3,6 +3,7 @@ import rpcClient from '../services/rpcClient.js';
 import dbWallet from '../services/dbWallet.js';
 import explorerClient from '../services/explorerClient.js';
 import { getTipHeight, getPool } from '../services/db.js';
+import { buildMemoPayload, parseMemoFromHex } from '../services/memo.js';
 import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
@@ -28,6 +29,28 @@ const B1T_NETWORK = {
 
 // SLIP-044 Coin Type für B1T
 const B1T_COIN_TYPE = 3141; // 0x80000c45
+
+// Attach BMEM1 memos to a list of {txid,...} rows using indexed OP_RETURN outputs (one batched query).
+async function attachMemos(transactions) {
+  try {
+    const txids = (transactions || []).map(t => t.txid).filter(Boolean);
+    if (txids.length === 0) return;
+    const { rows } = await getPool().query(
+      "SELECT txid, script_pub_key FROM outputs WHERE txid = ANY($1) AND script_pub_key LIKE '6a%'",
+      [txids]
+    );
+    const byTxid = new Map();
+    for (const r of rows) {
+      if (byTxid.has(r.txid)) continue;
+      const memo = parseMemoFromHex(r.script_pub_key);
+      if (memo) byTxid.set(r.txid, memo);
+    }
+    for (const t of transactions) {
+      const memo = byTxid.get(t.txid);
+      if (memo) { t.memo = memo.text; t.memoType = memo.type; }
+    }
+  } catch { /* memos are best-effort */ }
+}
 
 // Generate Mnemonic
 router.post('/generate-mnemonic', (req, res) => {
@@ -410,6 +433,9 @@ router.get('/transactions/:address', async (req, res) => {
       }
     }
 
+    // Enrich with BMEM1 memos (best-effort, from indexed OP_RETURN outputs)
+    await attachMemos(transactions);
+
     res.json({ success: true, address, count, transactions });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -419,7 +445,14 @@ router.get('/transactions/:address', async (req, res) => {
 // Send Transaction
 router.post('/send', async (req, res) => {
   try {
-    const { wif, wifs, fromAddress, toAddress, amount, fee, addressIndex = 0, useAll = false, fromAddresses = [], changeAddress, changeIndex = 0 } = req.body;
+    const { wif, wifs, fromAddress, toAddress, amount, fee, addressIndex = 0, useAll = false, fromAddresses = [], changeAddress, changeIndex = 0, memo, memoType } = req.body;
+
+    // Optional BMEM1 memo — validate/encode up front so we fail fast on bad input.
+    let memoPayload = null;
+    if (memo) {
+      try { memoPayload = buildMemoPayload(memo, memoType || 'utf8'); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
+    }
 
     // Schneller Healthcheck: ist der RPC-Node erreichbar? (5s Timeout)
     try {
@@ -543,6 +576,11 @@ router.post('/send', async (req, res) => {
         index: utxo.outputIndex,
         nonWitnessUtxo: Buffer.from(txHex, 'hex'),
       });
+    }
+
+    // Optional memo output (OP_RETURN, value 0)
+    if (memoPayload) {
+      psbt.addOutput({ script: bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, memoPayload]), value: 0 });
     }
 
     // Add main output

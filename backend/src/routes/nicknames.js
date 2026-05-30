@@ -2,6 +2,7 @@ import express from 'express';
 import rpcClient from '../services/rpcClient.js';
 import dbWallet from '../services/dbWallet.js';
 import { getPool, getTipHeight } from '../services/db.js';
+import { buildMemoPayload } from '../services/memo.js';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
 import * as ecc from 'tiny-secp256k1';
@@ -140,34 +141,6 @@ function p2pkScript(pubKeyHex) {
 
 function p2pkScriptHex(pubKeyHex) {
     return p2pkScript(pubKeyHex).toString('hex');
-}
-
-// ─── Helper: Build BMEM1 memo payload (optional send-with-memo overlay) ───
-function buildMemoPayload(data, type = 'utf8') {
-    const typeMap = { 'numeric': 0x01, 'alnum': 0x02, 'utf8': 0x03 };
-    const typeByte = typeMap[type];
-    if (!typeByte) throw new Error('Invalid memo type');
-
-    const dataBuf = Buffer.from(data, 'utf8');
-    if (dataBuf.length > 48) throw new Error('Memo too long (max 48 bytes)');
-
-    const magic = Buffer.from([0x42, 0x4D, 0x45, 0x4D, 0x31]); // "BMEM1"
-    const header = Buffer.concat([
-        magic,
-        Buffer.from([0x01, typeByte, dataBuf.length]),
-        dataBuf,
-    ]);
-
-    // CRC16-CCITT
-    let crc = 0xFFFF;
-    for (const byte of header) {
-        crc ^= byte << 8;
-        for (let i = 0; i < 8; i++) {
-            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
-        }
-    }
-
-    return Buffer.concat([header, Buffer.from([(crc >> 8) & 0xFF, crc & 0xFF])]);
 }
 
 // ─── Helper: Parse nickname OP_RETURN from a scriptPubKey hex (used by the indexer) ───

@@ -559,6 +559,11 @@ export default function Dashboard() {
                       <p className="text-xs text-gray-300">
                         {((tx.sent || 0) > 0) ? t('explorer.sent') : t('explorer.received')}: {formatAmount(((tx.sent || 0) > 0) ? tx.sent : (tx.received || 0))} B1T
                       </p>
+                      {tx.memo && (
+                        <p className="text-xs text-b1t-orange break-all flex items-start gap-1" title={tx.memo}>
+                          <span aria-hidden>📝</span><span>{tx.memo}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-b1t-orange">

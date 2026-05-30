@@ -15,6 +15,7 @@ export default function Send() {
 
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
+  const [memo, setMemo] = useState('');
   const [fee, setFee] = useState(0.0001);
   const [loading, setLoading] = useState(false);
   const [estimatedFee, setEstimatedFee] = useState(null);
@@ -218,6 +219,7 @@ export default function Send() {
           toAddress: resolvedAddr,
           amount: amountNum,
           fee,
+          memo: memo.trim() || undefined,
           changeIndex: (addresses || [])[0]?.index ?? 0,
         });
       } else {
@@ -227,6 +229,7 @@ export default function Send() {
           toAddress: resolvedAddr,
           amount: amountNum,
           fee,
+          memo: memo.trim() || undefined,
         });
       }
 
@@ -234,6 +237,7 @@ export default function Send() {
         toast.success(t('send.toast.sent', { txid: `${String(response.txid || '').slice(0, 16)}...` }));
         setToAddress('');
         setAmount('');
+        setMemo('');
         setTimeout(() => navigate('/dashboard'), 2000);
       }
     } catch (error) {
@@ -397,6 +401,26 @@ export default function Send() {
               )}
             </div>
 
+            <div>
+              <label className="block text-sm font-semibold mb-2">{t('send.memoLabel', 'Memo (optional)')}</label>
+              <input
+                type="text"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder={t('send.memoPlaceholder', 'Short on-chain message (max 48 bytes)')}
+                className="input"
+              />
+              {memo && (() => {
+                const bytes = new TextEncoder().encode(memo).length;
+                const over = bytes > 48;
+                return (
+                  <p className={`text-xs mt-1 ${over ? 'text-red-400' : 'text-gray-400'}`}>
+                    {bytes}/48 {t('send.memoBytes', 'bytes')}{over ? ' — too long' : ''} · {t('send.memoPublic', 'stored publicly on-chain')}
+                  </p>
+                );
+              })()}
+            </div>
+
             <div className="p-3 rounded bg-dark-200 text-xs text-gray-400 flex items-center gap-2">
               <AlertCircle size={14} />
               <p>
@@ -413,7 +437,7 @@ export default function Send() {
 
           <button
             type="submit"
-            disabled={loading || !toAddress || !amount}
+            disabled={loading || !toAddress || !amount || new TextEncoder().encode(memo).length > 48}
             className="btn-primary w-full disabled:opacity-50"
           >
             {loading ? t('send.submitting') : t('send.submit')}

@@ -20,7 +20,7 @@ export default function Layout() {
     { name: t('nav.addresses'), href: '/addresses', icon: BookOpen, requiresAuth: true },
     { name: t('nav.receive'), href: '/receive', icon: Download, requiresAuth: true },
     { name: t('nav.inscribe'), href: '/inscribe', icon: PenTool, requiresAuth: true },
-    { name: 'Names', href: '/names', icon: AtSign, requiresAuth: false },
+    { name: t('nav.names'), href: '/names', icon: AtSign, requiresAuth: false },
     // { name: t('nav.mine'), href: '/mine', icon: Pickaxe, requiresAuth: true }, // TEMPORARILY DISABLED
     { name: t('nav.explorer'), href: '/explorer', icon: Search, requiresAuth: false },
     { name: t('nav.mempool'), href: '/mempool', icon: Activity, requiresAuth: false },

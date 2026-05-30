@@ -39,7 +39,40 @@ function deriveChild(mnemonic, index, change = 0) {
 export function deriveAddress(mnemonic, index = 0) {
   const child = deriveChild(mnemonic, index);
   const { address } = bitcoin.payments.p2pkh({ pubkey: child.publicKey, network: B1T_NETWORK });
-  return { address, index };
+  return { address, index, publicKey: Buffer.from(child.publicKey).toString('hex') };
+}
+
+export function derivePublicKey(mnemonic, index = 0) {
+  const child = deriveChild(mnemonic, index);
+  return Buffer.from(child.publicKey).toString('hex');
+}
+
+// Batch helpers: derive the seed/root once (mnemonicToSeedSync is an expensive PBKDF2).
+export function derivePublicKeys(mnemonic, count = 20, startIndex = 0) {
+  const seed = bip39.mnemonicToSeedSync(mnemonic.trim());
+  const root = bip32.fromSeed(seed, B1T_NETWORK);
+  const out = [];
+  for (let i = startIndex; i < startIndex + count; i++) {
+    const child = root.derivePath(`m/44'/${COIN_TYPE}'/0'/0/${i}`);
+    out.push(Buffer.from(child.publicKey).toString('hex'));
+  }
+  return out;
+}
+
+// Find the WIF/index/address whose pubkey matches, scanning the first `count` addresses.
+export function findKeyByPubkey(mnemonic, pubkeyHex, count = 20) {
+  const target = String(pubkeyHex || '').toLowerCase();
+  if (!target) return null;
+  const seed = bip39.mnemonicToSeedSync(mnemonic.trim());
+  const root = bip32.fromSeed(seed, B1T_NETWORK);
+  for (let i = 0; i < count; i++) {
+    const child = root.derivePath(`m/44'/${COIN_TYPE}'/0'/0/${i}`);
+    if (Buffer.from(child.publicKey).toString('hex').toLowerCase() === target) {
+      const { address } = bitcoin.payments.p2pkh({ pubkey: child.publicKey, network: B1T_NETWORK });
+      return { wif: child.toWIF(), index: i, address };
+    }
+  }
+  return null;
 }
 
 export function deriveAddresses(mnemonic, count = 5, startIndex = 0) {

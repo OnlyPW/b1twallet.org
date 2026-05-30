@@ -188,6 +188,8 @@ export const walletApi = {
     api.get(`/api/nicknames/resolve/${encodeURIComponent(name)}`),
   listNicknames: (params = {}) =>
     api.get('/api/nicknames/list', { params }),
+  getMyNicknames: (pubkeys) =>
+    api.post('/api/nicknames/my', { pubkeys }),
   registerNickname: (data) =>
     api.post('/api/nicknames/register', data),
   updateNickname: (data) =>
@@ -247,6 +249,7 @@ export const nicknamesApi = {
   getInfo: (name) => api.get(`/api/nicknames/info/${encodeURIComponent(name)}`),
   resolve: (name) => api.get(`/api/nicknames/resolve/${encodeURIComponent(name)}`),
   list: (params = {}) => api.get('/api/nicknames/list', { params }),
+  my: (pubkeys) => api.post('/api/nicknames/my', { pubkeys }),
   register: (data) => api.post('/api/nicknames/register', data),
   update: (data) => api.post('/api/nicknames/update', data),
   transfer: (data) => api.post('/api/nicknames/transfer', data),

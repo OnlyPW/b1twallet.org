@@ -1,6 +1,6 @@
 import rpcClient from '../services/rpcClient.js';
-import { initSchema, getTipHeight, insertBlock, insertTransactionsBulk, insertOutputsBulk, markOutputSpent, getPool, upsertNickname, updateNicknameStatuses } from '../services/db.js';
-import { parseNicknameOpFromHex } from '../routes/nicknames.js';
+import { initSchema, getTipHeight, insertBlock, insertTransactionsBulk, insertOutputsBulk, markOutputSpent, getPool, upsertNickname, updateNicknameStatuses, getNicknameByName } from '../services/db.js';
+import { parseNicknameOpFromHex, findBondOutput } from '../routes/nicknames.js';
 
 const NICKNAME_ACTIVATION_HEIGHT = 400000;
 
@@ -74,6 +74,17 @@ async function processBlockData(height, block, client) {
         if (!parsed) continue;
 
         try {
+          // Locate the (new) bond output created by this op so we can track the bond UTXO.
+          // REGISTER → owner pubkey; TRANSFER → new owner pubkey; RENEW → existing owner pubkey.
+          let bondOwnerPk = null;
+          if (parsed.opType === 1) bondOwnerPk = parsed.ownerPubKey;
+          else if (parsed.opType === 3) bondOwnerPk = parsed.newOwnerPubKey;
+          else if (parsed.opType === 4) {
+            const existing = await getNicknameByName(parsed.nickname, client);
+            bondOwnerPk = existing?.owner_pubkey || null;
+          }
+          const bond = bondOwnerPk ? findBondOutput(tx, bondOwnerPk) : null;
+
           await upsertNickname({
             opType: parsed.opType,
             nickname: parsed.nickname,
@@ -82,6 +93,9 @@ async function processBlockData(height, block, client) {
             newOwnerPubKey: parsed.newOwnerPubKey || null,
             txid: tx.txid,
             height: height,
+            bondTxid: bond ? tx.txid : null,
+            bondVout: bond ? bond.vout : null,
+            bondAmountSat: bond ? bond.satoshis : null,
           }, client);
         } catch (e) {
           console.error(`Nickname parse error at block ${height}, tx ${tx.txid}:`, e.message);

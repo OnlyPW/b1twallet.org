@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserPlus, Send, RefreshCw, Shield, Clock, CheckCircle, XCircle, Loader, AtSign, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Search, UserPlus, Send, RefreshCw, Clock, Loader, AtSign,
+  Repeat, Edit3, ArrowRightLeft, LogOut, Coins, X, Wallet, CheckCircle,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { walletApi } from '../services/api';
 import useWalletStore from '../store/walletStore';
 
 const NICKNAME_ACTIVATION_HEIGHT = 400000;
+const BLOCK_SECONDS = 54; // ~54s block time (nicknames.h)
 
 const STATUS_COLORS = {
   ACTIVE: 'text-green-400 bg-green-500/20 border-green-500/30',
@@ -15,26 +19,285 @@ const STATUS_COLORS = {
   BOND_CLAIMABLE: 'text-purple-400 bg-purple-500/20 border-purple-500/30',
   RELEASED: 'text-gray-400 bg-gray-500/20 border-gray-500/30',
   NOT_REGISTERED: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30',
+  INVALID: 'text-red-400 bg-red-500/20 border-red-500/30',
 };
 
+const MUTABLE = ['ACTIVE', 'EXPIRED_GRACE'];
+const AVAILABLE = ['NOT_REGISTERED', 'EXPIRED_AVAILABLE', 'RELEASED'];
+
+function approxDays(blocks) {
+  return Math.max(0, Math.round((blocks * BLOCK_SECONDS) / 86400));
+}
+
+function shortAddr(a) {
+  if (!a) return '-';
+  return `${a.slice(0, 8)}...${a.slice(-6)}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Management actions for a name the wallet owns (renew / update /
+// transfer / release / claim bond). Self-contained with modals.
+// ─────────────────────────────────────────────────────────────
+function NameManageActions({ name, blockHeight, onDone }) {
+  const { addresses, getWIFForPubkey } = useWalletStore();
+  const [busy, setBusy] = useState(null); // action key
+  const [modal, setModal] = useState(null); // 'update' | 'transfer'
+  const [payoutInput, setPayoutInput] = useState(name.payout_address || '');
+  const [ownerInput, setOwnerInput] = useState('');
+
+  const status = name.status;
+  const isMutable = MUTABLE.includes(status);
+  const isClaimable = status === 'BOND_CLAIMABLE' || name.claimable_bond;
+
+  const ownerCtx = () => {
+    const ctx = getWIFForPubkey(name.owner_pubkey);
+    if (!ctx) {
+      toast.error('Owner key for this name is not in the unlocked wallet');
+      return null;
+    }
+    return ctx;
+  };
+
+  const finish = (msg, txid) => {
+    toast.success(`${msg}${txid ? ` — ${String(txid).slice(0, 10)}…` : ''}`);
+    setModal(null);
+    if (onDone) onDone();
+  };
+
+  const handleRenew = async () => {
+    const ctx = ownerCtx();
+    if (!ctx) return;
+    let increase = name.renewal_bond_increase;
+    try {
+      const c = await walletApi.checkNickname(name.nickname);
+      increase = c.renewal_bond_increase ?? c.renewal_fee;
+    } catch { }
+    if (!window.confirm(
+      `Renew @${name.nickname}?\n\nAdds ~${increase ?? '?'} B1T to the locked bond and extends the name by ~90 days.\nYou pay the bond increase + a small network fee from this wallet.`
+    )) return;
+    setBusy('renew');
+    try {
+      const r = await walletApi.renewNickname({ wif: ctx.wif, nickname: name.nickname });
+      if (r.success) finish(`Renewed @${name.nickname}`, r.txid);
+      else toast.error(r.error || 'Renew failed');
+    } catch (e) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleUpdate = async () => {
+    const ctx = ownerCtx();
+    if (!ctx) return;
+    if (!payoutInput) { toast.error('Enter a payout address'); return; }
+    setBusy('update');
+    try {
+      const r = await walletApi.updateNickname({ wif: ctx.wif, nickname: name.nickname, newPayoutAddress: payoutInput.trim() });
+      if (r.success) finish(`Payout updated for @${name.nickname}`, r.txid);
+      else toast.error(r.error || 'Update failed');
+    } catch (e) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleTransfer = async () => {
+    const ctx = ownerCtx();
+    if (!ctx) return;
+    const pk = ownerInput.trim().toLowerCase();
+    if (!/^[0-9a-f]{66}$/.test(pk)) {
+      toast.error('New owner pubkey must be a 33-byte compressed pubkey (66 hex chars)');
+      return;
+    }
+    if (!window.confirm(`Transfer ownership of @${name.nickname} to\n${pk}?\n\nThis hands full control of the name to the new owner.`)) return;
+    setBusy('transfer');
+    try {
+      const r = await walletApi.transferNickname({ wif: ctx.wif, nickname: name.nickname, newOwnerPubKey: pk });
+      if (r.success) finish(`Transferred @${name.nickname}`, r.txid);
+      else toast.error(r.error || 'Transfer failed');
+    } catch (e) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleRelease = async () => {
+    const ctx = ownerCtx();
+    if (!ctx) return;
+    if (!window.confirm(
+      `Release @${name.nickname}?\n\nThe name stops resolving and becomes available to others. Your bond becomes claimable afterwards (use "Claim bond").`
+    )) return;
+    setBusy('release');
+    try {
+      const r = await walletApi.releaseNickname({ wif: ctx.wif, nickname: name.nickname });
+      if (r.success) finish(`Released @${name.nickname}`, r.txid);
+      else toast.error(r.error || 'Release failed');
+    } catch (e) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleClaim = async () => {
+    const ctx = ownerCtx();
+    if (!ctx) return;
+    if (!window.confirm(`Claim the bond of @${name.nickname} (~${name.bond_amount ?? '?'} B1T) back to your wallet?`)) return;
+    setBusy('claim');
+    try {
+      const r = await walletApi.claimNicknameBond({ wif: ctx.wif, nickname: name.nickname });
+      if (r.success) finish(`Claimed bond of @${name.nickname}`, r.txid);
+      else toast.error(r.error || 'Claim failed');
+    } catch (e) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const Btn = ({ onClick, icon: Icon, label, color = 'bg-[#1A1A1A] hover:bg-[#262626] border border-gray-700', k }) => (
+    <button
+      onClick={onClick}
+      disabled={!!busy}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${color}`}
+    >
+      {busy === k ? <Loader className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap gap-2">
+        {isMutable && (
+          <>
+            <Btn k="renew" onClick={handleRenew} icon={Repeat} label="Renew" color="bg-[#FF6B00] hover:bg-[#FF8533]" />
+            <Btn k="update" onClick={() => { setPayoutInput(name.payout_address || ''); setModal('update'); }} icon={Edit3} label="Update payout" />
+            <Btn k="transfer" onClick={() => { setOwnerInput(''); setModal('transfer'); }} icon={ArrowRightLeft} label="Transfer" />
+            <Btn k="release" onClick={handleRelease} icon={LogOut} label="Release" color="bg-red-900/40 hover:bg-red-900/60 border border-red-800" />
+          </>
+        )}
+        {isClaimable && (
+          <Btn k="claim" onClick={handleClaim} icon={Coins} label="Claim bond" color="bg-purple-700 hover:bg-purple-600" />
+        )}
+      </div>
+
+      {/* Update payout modal */}
+      <AnimatePresence>
+        {modal === 'update' && (
+          <ModalShell title={`Update payout — @${name.nickname}`} onClose={() => setModal(null)}>
+            <label className="block text-xs text-gray-400 mb-1">New payout address</label>
+            <input
+              value={payoutInput}
+              onChange={e => setPayoutInput(e.target.value)}
+              placeholder="B1T address resolved by this name"
+              className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white font-mono text-sm outline-none focus:border-[#FF6B00] mb-3"
+            />
+            {addresses?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {addresses.slice(0, 5).map(a => (
+                  <button key={a.index} onClick={() => setPayoutInput(a.address)}
+                    className="text-xs px-2 py-1 rounded bg-[#1A1A1A] border border-gray-700 hover:border-[#FF6B00]">
+                    #{a.index} {shortAddr(a.address)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <ModalActions busy={busy === 'update'} onCancel={() => setModal(null)} onConfirm={handleUpdate} confirmLabel="Update" />
+          </ModalShell>
+        )}
+      </AnimatePresence>
+
+      {/* Transfer modal */}
+      <AnimatePresence>
+        {modal === 'transfer' && (
+          <ModalShell title={`Transfer — @${name.nickname}`} onClose={() => setModal(null)}>
+            <label className="block text-xs text-gray-400 mb-1">New owner public key (66 hex chars)</label>
+            <input
+              value={ownerInput}
+              onChange={e => setOwnerInput(e.target.value)}
+              placeholder="02… compressed pubkey of the new owner"
+              className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white font-mono text-sm outline-none focus:border-[#FF6B00] mb-3"
+            />
+            {addresses?.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs text-gray-500 mb-1">…or move it to one of your own addresses:</div>
+                <div className="flex flex-wrap gap-2">
+                  {addresses.slice(0, 5).filter(a => a.publicKey).map(a => (
+                    <button key={a.index} onClick={() => setOwnerInput(a.publicKey)}
+                      className="text-xs px-2 py-1 rounded bg-[#1A1A1A] border border-gray-700 hover:border-[#FF6B00]">
+                      #{a.index} {shortAddr(a.address)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <ModalActions busy={busy === 'transfer'} onCancel={() => setModal(null)} onConfirm={handleTransfer} confirmLabel="Transfer" danger />
+          </ModalShell>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ModalShell({ title, onClose, children }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+        className="bg-[#161616] border border-gray-800 rounded-2xl p-6 w-full max-w-md"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function ModalActions({ busy, onCancel, onConfirm, confirmLabel, danger }) {
+  return (
+    <div className="flex gap-2">
+      <button onClick={onCancel} disabled={busy} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold disabled:opacity-50">Cancel</button>
+      <button onClick={onConfirm} disabled={busy}
+        className={`flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50 ${danger ? 'bg-red-700 hover:bg-red-600' : 'bg-[#FF6B00] hover:bg-[#FF8533]'}`}>
+        {busy ? <Loader className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+        {confirmLabel}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Main page
+// ─────────────────────────────────────────────────────────────
 export default function Names() {
   const { t } = useTranslation();
-  const { isUnlocked, addresses, getWIF, getCurrentAddress } = useWalletStore();
+  const { isUnlocked, addresses, currentAddressIndex, getWIF, getWalletPubkeys } = useWalletStore();
 
-  // State
+  const [activeTab, setActiveTab] = useState('search'); // search | mine | browse
+  const [blockHeight, setBlockHeight] = useState(0);
+
+  // Search
   const [searchInput, setSearchInput] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'browse'
+
+  // Register
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [ownerIndex, setOwnerIndex] = useState(currentAddressIndex || 0);
+  const [payoutAddress, setPayoutAddress] = useState('');
+
+  // My names
+  const [myNames, setMyNames] = useState([]);
+  const [myLoading, setMyLoading] = useState(false);
+
+  // Browse
   const [allNames, setAllNames] = useState([]);
   const [browseLoading, setBrowseLoading] = useState(false);
-  const [blockHeight, setBlockHeight] = useState(0);
-  const [registerLoading, setRegisterLoading] = useState(false);
+
+  // Send
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
   const [sendNickname, setSendNickname] = useState('');
+  const [sendLoading, setSendLoading] = useState(false);
 
-  // Fetch block height
   useEffect(() => {
     const fetchHeight = async () => {
       try {
@@ -50,45 +313,41 @@ export default function Names() {
   const isActive = blockHeight >= NICKNAME_ACTIVATION_HEIGHT;
   const blocksRemaining = Math.max(0, NICKNAME_ACTIVATION_HEIGHT - blockHeight);
 
-  // Search nickname
-  const handleSearch = useCallback(async () => {
-    const input = searchInput.trim();
-    if (!input) return;
+  const walletPubkeys = useMemo(
+    () => (isUnlocked ? getWalletPubkeys(20).map(p => p.toLowerCase()) : []),
+    [isUnlocked, getWalletPubkeys]
+  );
+  const ownsName = (n) => n?.owner_pubkey && walletPubkeys.includes(String(n.owner_pubkey).toLowerCase());
 
+  // ── Search ──
+  const handleSearch = useCallback(async (term) => {
+    const input = (term ?? searchInput).trim();
+    if (!input) return;
     setSearchLoading(true);
     setSearchResult(null);
-
     try {
       let name = input.toLowerCase();
       if (name.startsWith('@')) name = name.slice(1);
 
       const checkData = await walletApi.checkNickname(name);
       if (!checkData || !checkData.valid) {
-        setSearchResult({
-          normalized: name,
-          valid: false,
-          reason: checkData?.reason || 'Invalid nickname',
-          status: 'INVALID',
-        });
+        setSearchResult({ normalized: checkData?.normalized || name, valid: false, reason: checkData?.reason || 'Invalid nickname', status: 'INVALID' });
         return;
       }
 
-      // Get full info
       let info = null;
-      try {
-        info = await walletApi.getNicknameInfo(name);
-      } catch { }
+      try { info = await walletApi.getNicknameInfo(name); } catch { }
 
       setSearchResult({
         normalized: checkData.normalized || name,
         valid: true,
         status: info?.status || 'NOT_REGISTERED',
-        payoutAddress: info?.payout_address,
-        ownerPubkey: info?.owner_pubkey,
-        bondAmount: info?.bond_amount,
-        registrationHeight: info?.registration_height,
-        activeUntil: info?.active_until,
-        graceUntil: info?.grace_until,
+        payout_address: info?.payout_address,
+        owner_pubkey: info?.owner_pubkey,
+        bond_amount: info?.bond_amount,
+        active_until: info?.active_until,
+        grace_until: info?.grace_until,
+        claimable_bond: info?.claimable_bond,
         registrationFee: checkData.registration_fee,
         bondFee: checkData.bond_amount,
         renewalFee: checkData.renewal_fee,
@@ -100,33 +359,33 @@ export default function Names() {
     }
   }, [searchInput]);
 
-  // Register nickname
+  // ── Register ──
+  const openRegister = () => {
+    setOwnerIndex(currentAddressIndex || 0);
+    const ownerAddr = addresses?.[currentAddressIndex || 0]?.address || addresses?.[0]?.address || '';
+    setPayoutAddress(ownerAddr);
+    setRegisterOpen(true);
+  };
+
   const handleRegister = async () => {
-    if (!isUnlocked || !searchResult || !searchResult.valid) return;
-
+    if (!isUnlocked || !searchResult?.valid) return;
     const name = searchResult.normalized;
-    const fee = searchResult.registrationFee || 1;
-    const bond = searchResult.bondFee || 3;
-
-    if (!confirm(`Register @${name}?\n\nFee: ${fee} B1T\nBond: ${bond} B1T\nTotal: ${fee + bond} B1T`)) {
-      return;
-    }
+    const owner = addresses?.[ownerIndex];
+    if (!owner) { toast.error('Select an owner address'); return; }
+    const wif = getWIF(owner.index);
+    if (!wif) { toast.error('Wallet locked'); return; }
 
     setRegisterLoading(true);
     try {
-      const wif = await getWIF();
-      const fromAddress = getCurrentAddress();
-
       const result = await walletApi.registerNickname({
         wif,
         nickname: name,
-        payoutAddress: fromAddress,
-        fromAddress,
+        payoutAddress: (payoutAddress || owner.address).trim(),
       });
-
       if (result.success) {
-        toast.success(`@${name} registered! TX: ${result.txid?.slice(0, 8)}...`);
-        await handleSearch(); // Refresh
+        toast.success(`@${name} registered — ${String(result.txid).slice(0, 10)}…`);
+        setRegisterOpen(false);
+        setTimeout(() => handleSearch(name), 800);
       } else {
         toast.error(result.error || 'Registration failed');
       }
@@ -137,29 +396,21 @@ export default function Names() {
     }
   };
 
-  // Send to nickname
+  // ── Send to nickname ──
   const handleSendToNickname = async () => {
     if (!isUnlocked || !sendNickname || !sendAmount) return;
-
     const amount = parseFloat(sendAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Invalid amount');
-      return;
-    }
+    if (isNaN(amount) || amount <= 0) { toast.error('Invalid amount'); return; }
+    const owner = addresses?.[currentAddressIndex || 0] || addresses?.[0];
+    if (!owner) { toast.error('No wallet address'); return; }
+    const wif = getWIF(owner.index);
+    if (!wif) { toast.error('Wallet locked'); return; }
 
+    setSendLoading(true);
     try {
-      const wif = await getWIF();
-      const fromAddress = getCurrentAddress();
-
-      const result = await walletApi.sendToNickname({
-        wif,
-        nickname: sendNickname,
-        amount,
-        fromAddress,
-      });
-
+      const result = await walletApi.sendToNickname({ wif, nickname: sendNickname, amount, fromAddress: owner.address });
       if (result.success) {
-        toast.success(`Sent ${amount} B1T to @${sendNickname}!`);
+        toast.success(`Sent ${amount} B1T to @${sendNickname} — ${String(result.txid).slice(0, 10)}…`);
         setSendDialogOpen(false);
         setSendAmount('');
       } else {
@@ -167,14 +418,31 @@ export default function Names() {
       }
     } catch (e) {
       toast.error('Send error: ' + e.message);
+    } finally {
+      setSendLoading(false);
     }
   };
 
-  // Browse all names
+  // ── My names ──
+  const loadMyNames = useCallback(async () => {
+    if (!isUnlocked) return;
+    setMyLoading(true);
+    try {
+      const pubkeys = getWalletPubkeys(20);
+      const res = await walletApi.getMyNicknames(pubkeys);
+      setMyNames(res.nicknames || []);
+    } catch (e) {
+      toast.error('Failed to load your names: ' + e.message);
+    } finally {
+      setMyLoading(false);
+    }
+  }, [isUnlocked, getWalletPubkeys]);
+
+  // ── Browse ──
   const loadAllNames = useCallback(async () => {
     setBrowseLoading(true);
     try {
-      const result = await walletApi.listNicknames({ count: 100 });
+      const result = await walletApi.listNicknames({ count: 200 });
       setAllNames(result.nicknames || []);
     } catch (e) {
       console.error('Failed to load nicknames:', e);
@@ -185,69 +453,53 @@ export default function Names() {
 
   useEffect(() => {
     if (activeTab === 'browse') loadAllNames();
-  }, [activeTab, loadAllNames]);
+    if (activeTab === 'mine') loadMyNames();
+  }, [activeTab, loadAllNames, loadMyNames]);
+
+  const openSend = (name) => { setSendNickname(name); setSendAmount(''); setSendDialogOpen(true); };
+
+  const Tab = ({ id, label, icon: Icon }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${activeTab === id ? 'bg-[#FF6B00] text-white' : 'bg-[#1A1A1A] text-gray-400 hover:text-white border border-gray-800'}`}
+    >
+      <Icon className="w-4 h-4" /> {label}
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0A0A0A] to-[#111] text-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             <AtSign className="w-8 h-8 text-[#FF6B00]" />
             <h1 className="text-3xl font-bold">B1T Names</h1>
           </div>
-          <p className="text-gray-400">Register and manage on-chain nicknames</p>
+          <p className="text-gray-400">Register, manage and renew on-chain names — send and receive via @name.</p>
         </motion.div>
 
-        {/* Activation Warning */}
-        {!isActive && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-300 text-center"
-          >
+        {/* Activation warning */}
+        {!isActive && blockHeight > 0 && (
+          <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-300 text-center">
             <Clock className="w-5 h-5 inline mr-2" />
-            Nickname feature activates at block <b>{NICKNAME_ACTIVATION_HEIGHT.toLocaleString()}</b>
-            <br />
-            <span className="text-sm text-yellow-400/70">
+            Names activate at block <b>{NICKNAME_ACTIVATION_HEIGHT.toLocaleString()}</b>
+            <span className="block text-sm text-yellow-400/70">
               {blocksRemaining.toLocaleString()} blocks remaining (current: {blockHeight.toLocaleString()})
             </span>
-          </motion.div>
+          </div>
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === 'search'
-                ? 'bg-[#FF6B00] text-white'
-                : 'bg-[#1A1A1A] text-gray-400 hover:text-white border border-gray-800'
-            }`}
-          >
-            <Search className="w-4 h-4 inline mr-2" />
-            Lookup
-          </button>
-          <button
-            onClick={() => setActiveTab('browse')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === 'browse'
-                ? 'bg-[#FF6B00] text-white'
-                : 'bg-[#1A1A1A] text-gray-400 hover:text-white border border-gray-800'
-            }`}
-          >
-            All Names
-          </button>
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Tab id="search" label="Lookup" icon={Search} />
+          <Tab id="mine" label="My Names" icon={Wallet} />
+          <Tab id="browse" label="All Names" icon={AtSign} />
         </div>
 
-        {/* Search Tab */}
+        {/* ───── SEARCH TAB ───── */}
         {activeTab === 'search' && (
           <div>
-            {/* Search Bar */}
             <div className="flex gap-2 mb-6">
               <div className="flex-1 flex items-center bg-[#1A1A1A] border border-gray-800 rounded-xl px-4">
                 <span className="text-[#FF6B00] font-bold text-lg mr-1">@</span>
@@ -256,30 +508,21 @@ export default function Names() {
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
                   onKeyUp={e => e.key === 'Enter' && handleSearch()}
-                  placeholder="Enter nickname (e.g. bit_dev)"
+                  placeholder="Enter a name (e.g. bit_dev)"
                   maxLength={16}
                   className="flex-1 bg-transparent py-3 text-white outline-none"
-                  disabled={!isActive}
                 />
               </div>
-              <button
-                onClick={handleSearch}
-                disabled={searchLoading || !isActive}
-                className="px-6 py-3 bg-[#FF6B00] hover:bg-[#FF8533] disabled:opacity-50 rounded-xl font-semibold transition-all"
-              >
+              <button onClick={() => handleSearch()} disabled={searchLoading}
+                className="px-6 py-3 bg-[#FF6B00] hover:bg-[#FF8533] disabled:opacity-50 rounded-xl font-semibold">
                 {searchLoading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
               </button>
             </div>
 
-            {/* Search Result */}
             <AnimatePresence>
               {searchResult && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-6"
-                >
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-bold text-[#FF6B00]">@{searchResult.normalized}</h2>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[searchResult.status] || STATUS_COLORS.NOT_REGISTERED}`}>
@@ -287,66 +530,53 @@ export default function Names() {
                     </span>
                   </div>
 
-                  {!searchResult.valid && (
-                    <p className="text-red-400 mb-4">{searchResult.reason}</p>
-                  )}
+                  {!searchResult.valid && <p className="text-red-400 mb-2">{searchResult.reason}</p>}
 
-                  {searchResult.valid && (searchResult.status === 'NOT_REGISTERED' || searchResult.status === 'EXPIRED_AVAILABLE') && (
-                    <div className="space-y-2 mb-6">
-                      <h3 className="text-sm text-gray-400 uppercase tracking-wider">Registration Pricing</h3>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-[#0A0A0A] rounded-lg p-3 border border-gray-800">
-                          <div className="text-xs text-gray-500">Fee</div>
-                          <div className="text-lg font-bold">{searchResult.registrationFee} B1T</div>
-                        </div>
-                        <div className="bg-[#0A0A0A] rounded-lg p-3 border border-gray-800">
-                          <div className="text-xs text-gray-500">Bond</div>
-                          <div className="text-lg font-bold">{searchResult.bondFee} B1T</div>
-                        </div>
-                        <div className="bg-[#0A0A0A] rounded-lg p-3 border border-gray-800">
-                          <div className="text-xs text-gray-500">Renewal</div>
-                          <div className="text-lg font-bold">{searchResult.renewalFee} B1T</div>
-                        </div>
+                  {/* Available → pricing + register */}
+                  {searchResult.valid && AVAILABLE.includes(searchResult.status) && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm text-gray-400 uppercase tracking-wider">Registration pricing</h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        <Stat label="Fee (burned)" value={`${searchResult.registrationFee} B1T`} />
+                        <Stat label="Bond (refundable)" value={`${searchResult.bondFee} B1T`} />
+                        <Stat label="Renewal" value={`${searchResult.renewalFee} B1T`} />
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Total upfront: <b className="text-gray-300">{(Number(searchResult.registrationFee) + Number(searchResult.bondFee)).toFixed(4)} B1T</b> (bond is returned when you release the name)
                       </div>
                       <button
-                        onClick={handleRegister}
-                        disabled={registerLoading || !isUnlocked}
-                        className="w-full mt-4 py-3 bg-[#FF6B00] hover:bg-[#FF8533] disabled:opacity-50 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                        onClick={openRegister}
+                        disabled={!isUnlocked || !isActive}
+                        className="w-full mt-2 py-3 bg-[#FF6B00] hover:bg-[#FF8533] disabled:opacity-50 rounded-xl font-semibold flex items-center justify-center gap-2"
                       >
-                        {registerLoading ? <Loader className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
-                        Register @{searchResult.normalized}
+                        <UserPlus className="w-5 h-5" />
+                        {isUnlocked ? `Register @${searchResult.normalized}` : 'Unlock wallet to register'}
                       </button>
                     </div>
                   )}
 
-                  {(searchResult.status === 'ACTIVE' || searchResult.status === 'EXPIRED_GRACE') && (
-                    <div className="space-y-3 mb-4">
-                      {searchResult.payoutAddress && (
-                        <div>
-                          <span className="text-xs text-gray-500">Payout Address</span>
-                          <div className="font-mono text-sm break-all">{searchResult.payoutAddress}</div>
-                        </div>
-                      )}
-                      {searchResult.bondAmount && (
-                        <div>
-                          <span className="text-xs text-gray-500">Bond</span>
-                          <div>{searchResult.bondAmount} B1T</div>
-                        </div>
-                      )}
-                      {searchResult.registrationHeight && (
-                        <div>
-                          <span className="text-xs text-gray-500">Registered at Block</span>
-                          <div>{searchResult.registrationHeight?.toLocaleString()}</div>
-                        </div>
-                      )}
+                  {/* Taken → details (+ manage if owned, + send) */}
+                  {(searchResult.status === 'ACTIVE' || searchResult.status === 'EXPIRED_GRACE' || searchResult.status === 'BOND_CLAIMABLE') && (
+                    <div className="space-y-3">
+                      {searchResult.payout_address && <KV label="Payout address" mono value={searchResult.payout_address} />}
+                      {searchResult.owner_pubkey && <KV label="Owner pubkey" mono value={searchResult.owner_pubkey} />}
+                      {typeof searchResult.bond_amount !== 'undefined' && <KV label="Bond" value={`${searchResult.bond_amount} B1T`} />}
+                      {searchResult.active_until ? (
+                        <KV label="Expires" value={`block ${Number(searchResult.active_until).toLocaleString()} (~${approxDays(searchResult.active_until - blockHeight)} days)`} />
+                      ) : null}
+
                       {searchResult.status === 'ACTIVE' && (
-                        <button
-                          onClick={() => { setSendNickname(searchResult.normalized); setSendDialogOpen(true); }}
-                          className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
-                        >
-                          <Send className="w-5 h-5" />
-                          Send to @{searchResult.normalized}
+                        <button onClick={() => openSend(searchResult.normalized)}
+                          className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-xl font-semibold flex items-center justify-center gap-2">
+                          <Send className="w-5 h-5" /> Send to @{searchResult.normalized}
                         </button>
+                      )}
+
+                      {isUnlocked && ownsName(searchResult) && (
+                        <div className="pt-2 border-t border-gray-800">
+                          <div className="text-xs text-green-400 mb-1 flex items-center gap-1"><Wallet className="w-3 h-3" /> You own this name</div>
+                          <NameManageActions name={searchResult} blockHeight={blockHeight} onDone={() => handleSearch(searchResult.normalized)} />
+                        </div>
                       )}
                     </div>
                   )}
@@ -356,29 +586,66 @@ export default function Names() {
           </div>
         )}
 
-        {/* Browse Tab */}
-        {activeTab === 'browse' && (
+        {/* ───── MY NAMES TAB ───── */}
+        {activeTab === 'mine' && (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">All Registered Names</h2>
-              <button
-                onClick={loadAllNames}
-                disabled={browseLoading}
-                className="p-2 bg-[#1A1A1A] border border-gray-800 rounded-lg hover:border-gray-600 transition-all"
-              >
-                <RefreshCw className={`w-4 h-4 ${browseLoading ? 'animate-spin' : ''}`} />
+              <h2 className="text-lg font-semibold">Names you own</h2>
+              <button onClick={loadMyNames} disabled={myLoading || !isUnlocked}
+                className="p-2 bg-[#1A1A1A] border border-gray-800 rounded-lg hover:border-gray-600 disabled:opacity-50">
+                <RefreshCw className={`w-4 h-4 ${myLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
 
+            {!isUnlocked ? (
+              <Empty>Unlock your wallet to see and manage your names.</Empty>
+            ) : myLoading ? (
+              <Loading>Loading your names…</Loading>
+            ) : myNames.length === 0 ? (
+              <Empty>You don't own any names yet. Find one in the <button className="text-[#FF6B00] underline" onClick={() => setActiveTab('search')}>Lookup</button> tab.</Empty>
+            ) : (
+              <div className="space-y-3">
+                {myNames.map(n => (
+                  <div key={n.nickname} className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-lg text-[#FF6B00]">@{n.nickname}</div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[n.status] || ''}`}>{n.status}</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm">
+                      <MiniKV label="Payout" value={shortAddr(n.payout_address)} mono />
+                      <MiniKV label="Bond" value={`${n.bond_amount ?? 0} B1T`} />
+                      {n.active_until ? <MiniKV label="Expires (block)" value={Number(n.active_until).toLocaleString()} /> : <MiniKV label="Expires" value="-" />}
+                      {n.active_until ? <MiniKV label="~Days left" value={n.status === 'ACTIVE' ? approxDays(n.active_until - blockHeight) : (n.status === 'EXPIRED_GRACE' ? 'grace' : '0')} /> : <MiniKV label="" value="" />}
+                    </div>
+                    {n.status === 'ACTIVE' && (
+                      <div className="mt-2">
+                        <button onClick={() => openSend(n.nickname)} className="text-xs text-green-400 hover:underline flex items-center gap-1">
+                          <Send className="w-3 h-3" /> Send to @{n.nickname}
+                        </button>
+                      </div>
+                    )}
+                    <NameManageActions name={n} blockHeight={blockHeight} onDone={loadMyNames} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ───── BROWSE TAB ───── */}
+        {activeTab === 'browse' && (
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">All registered names</h2>
+              <button onClick={loadAllNames} disabled={browseLoading}
+                className="p-2 bg-[#1A1A1A] border border-gray-800 rounded-lg hover:border-gray-600">
+                <RefreshCw className={`w-4 h-4 ${browseLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             {browseLoading ? (
-              <div className="text-center py-12 text-gray-500">
-                <Loader className="w-8 h-8 animate-spin mx-auto mb-2" />
-                Loading nicknames...
-              </div>
+              <Loading>Loading names…</Loading>
             ) : allNames.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                No nicknames registered yet.
-              </div>
+              <Empty>No names registered yet.</Empty>
             ) : (
               <div className="bg-[#1A1A1A] border border-gray-800 rounded-xl overflow-hidden">
                 <table className="w-full">
@@ -391,20 +658,13 @@ export default function Names() {
                   </thead>
                   <tbody>
                     {allNames.map(nick => (
-                      <tr
-                        key={nick.nickname}
-                        className="border-b border-gray-800/50 hover:bg-[#0A0A0A] cursor-pointer transition-colors"
-                        onClick={() => { setSearchInput(nick.nickname); setActiveTab('search'); handleSearch(); }}
-                      >
+                      <tr key={nick.nickname} className="border-b border-gray-800/50 hover:bg-[#0A0A0A] cursor-pointer"
+                        onClick={() => { setSearchInput(nick.nickname); setActiveTab('search'); handleSearch(nick.nickname); }}>
                         <td className="px-4 py-3 font-semibold text-[#FF6B00]">@{nick.nickname}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[nick.status] || ''}`}>
-                            {nick.status}
-                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[nick.status] || ''}`}>{nick.status}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-400 font-mono hidden md:table-cell">
-                          {nick.payout_address ? `${nick.payout_address.slice(0, 8)}...${nick.payout_address.slice(-6)}` : '-'}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-400 font-mono hidden md:table-cell">{shortAddr(nick.payout_address)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -414,53 +674,86 @@ export default function Names() {
           </div>
         )}
 
-        {/* Send Dialog */}
+        {/* Register modal */}
+        <AnimatePresence>
+          {registerOpen && searchResult && (
+            <ModalShell title={`Register @${searchResult.normalized}`} onClose={() => setRegisterOpen(false)}>
+              <label className="block text-xs text-gray-400 mb-1">Owner address (pays fee + bond, controls the name)</label>
+              <select value={ownerIndex} onChange={e => { const i = parseInt(e.target.value, 10); setOwnerIndex(i); if (!payoutAddress) setPayoutAddress(addresses?.[i]?.address || ''); }}
+                className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6B00] mb-3">
+                {(addresses || []).map(a => (
+                  <option key={a.index} value={a.index}>#{a.index} — {shortAddr(a.address)}</option>
+                ))}
+              </select>
+
+              <label className="block text-xs text-gray-400 mb-1">Payout address (resolved by the name)</label>
+              <input value={payoutAddress} onChange={e => setPayoutAddress(e.target.value)}
+                className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white font-mono text-sm outline-none focus:border-[#FF6B00] mb-3" />
+
+              <div className="bg-[#0A0A0A] border border-gray-800 rounded-lg p-3 mb-4 text-sm space-y-1">
+                <Row k="Registration fee (burned)" v={`${searchResult.registrationFee} B1T`} />
+                <Row k="Bond (locked, refundable)" v={`${searchResult.bondFee} B1T`} />
+                <div className="border-t border-gray-800 my-1" />
+                <Row k="Total needed" v={`${(Number(searchResult.registrationFee) + Number(searchResult.bondFee)).toFixed(4)} B1T + network fee`} bold />
+              </div>
+
+              <ModalActions busy={registerLoading} onCancel={() => setRegisterOpen(false)} onConfirm={handleRegister} confirmLabel={`Register`} />
+            </ModalShell>
+          )}
+        </AnimatePresence>
+
+        {/* Send dialog */}
         <AnimatePresence>
           {sendDialogOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-              onClick={() => setSendDialogOpen(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.9 }}
-                className="bg-[#1A1A1A] border border-gray-800 rounded-2xl p-6 w-full max-w-md"
-                onClick={e => e.stopPropagation()}
-              >
-                <h3 className="text-xl font-bold mb-4">Send to @{sendNickname}</h3>
-                <input
-                  type="number"
-                  value={sendAmount}
-                  onChange={e => setSendAmount(e.target.value)}
-                  placeholder="Amount in B1T"
-                  step="0.00000001"
-                  min="0"
-                  className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6B00] mb-4"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSendDialogOpen(false)}
-                    className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSendToNickname}
-                    className="flex-1 py-3 bg-[#FF6B00] hover:bg-[#FF8533] rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    Send
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
+            <ModalShell title={`Send to @${sendNickname}`} onClose={() => setSendDialogOpen(false)}>
+              <input type="number" value={sendAmount} onChange={e => setSendAmount(e.target.value)}
+                placeholder="Amount in B1T" step="0.00000001" min="0"
+                className="w-full bg-[#0A0A0A] border border-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6B00] mb-4" />
+              <ModalActions busy={sendLoading} onCancel={() => setSendDialogOpen(false)} onConfirm={handleSendToNickname} confirmLabel="Send" />
+            </ModalShell>
           )}
         </AnimatePresence>
       </div>
     </div>
   );
+}
+
+// ── Small presentational helpers ──
+function Stat({ label, value }) {
+  return (
+    <div className="bg-[#0A0A0A] rounded-lg p-3 border border-gray-800">
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-lg font-bold">{value}</div>
+    </div>
+  );
+}
+function KV({ label, value, mono }) {
+  return (
+    <div>
+      <span className="text-xs text-gray-500">{label}</span>
+      <div className={`text-sm break-all ${mono ? 'font-mono' : ''}`}>{value}</div>
+    </div>
+  );
+}
+function MiniKV({ label, value, mono }) {
+  return (
+    <div>
+      <div className="text-[10px] text-gray-500 uppercase">{label}</div>
+      <div className={`text-sm ${mono ? 'font-mono' : ''}`}>{value}</div>
+    </div>
+  );
+}
+function Row({ k, v, bold }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-gray-400">{k}</span>
+      <span className={bold ? 'font-bold' : ''}>{v}</span>
+    </div>
+  );
+}
+function Loading({ children }) {
+  return <div className="text-center py-12 text-gray-500"><Loader className="w-8 h-8 animate-spin mx-auto mb-2" />{children}</div>;
+}
+function Empty({ children }) {
+  return <div className="text-center py-12 text-gray-500">{children}</div>;
 }

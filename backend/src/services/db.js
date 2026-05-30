@@ -320,7 +320,11 @@ export async function insertOutputsBulk(rows, dbClient = null) {
 
 // ─── Nickname DB Functions ───
 
-export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddress, newOwnerPubKey, txid, height }, dbClient = null) {
+// Mirrors Core constants (nicknames.h). Renewal extends from max(activeUntil, height).
+const NICK_ACTIVE_BLOCKS = 144000;
+const NICK_GRACE_BLOCKS = 14400;
+
+export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddress, newOwnerPubKey, txid, height, bondTxid = null, bondVout = null, bondAmountSat = null }, dbClient = null) {
   return withClient(dbClient, async (client) => {
     const now = Math.floor(Date.now() / 1000);
 
@@ -337,8 +341,8 @@ export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddr
         await client.query(`
           INSERT INTO nicknames (nickname, owner_pubkey, payout_address,
             registration_height, active_until_height, grace_until_height,
-            bond_amount_satoshi, last_update_txid, status, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, 0, $7, 'ACTIVE', $8, $8)
+            bond_amount_satoshi, bond_txid, bond_vout, last_update_txid, status, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ACTIVE', $11, $11)
           ON CONFLICT (nickname) DO UPDATE SET
             owner_pubkey = EXCLUDED.owner_pubkey,
             payout_address = EXCLUDED.payout_address,
@@ -346,14 +350,16 @@ export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddr
             active_until_height = EXCLUDED.active_until_height,
             grace_until_height = EXCLUDED.grace_until_height,
             bond_amount_satoshi = EXCLUDED.bond_amount_satoshi,
+            bond_txid = EXCLUDED.bond_txid,
+            bond_vout = EXCLUDED.bond_vout,
             last_update_txid = EXCLUDED.last_update_txid,
             status = 'ACTIVE',
             released = FALSE,
             bond_claimed = FALSE,
             updated_at = EXCLUDED.updated_at
         `, [nickname, ownerPubKey, payoutAddress,
-            height, height + 144000, height + 144000 + 14400,
-            txid, now]);
+            height, height + NICK_ACTIVE_BLOCKS, height + NICK_ACTIVE_BLOCKS + NICK_GRACE_BLOCKS,
+            bondAmountSat || 0, bondTxid, bondVout, txid, now]);
         break;
       }
 
@@ -371,21 +377,31 @@ export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddr
         await client.query(`
           UPDATE nicknames SET
             owner_pubkey = $1,
-            last_update_txid = $2,
-            updated_at = $3
-          WHERE nickname = $4
-        `, [newOwnerPubKey, txid, now, nickname]);
+            bond_txid = COALESCE($2, bond_txid),
+            bond_vout = COALESCE($3, bond_vout),
+            bond_amount_satoshi = COALESCE($4, bond_amount_satoshi),
+            bond_claimed = FALSE,
+            last_update_txid = $5,
+            updated_at = $6
+          WHERE nickname = $7
+        `, [newOwnerPubKey, bondTxid, bondVout, bondAmountSat, txid, now, nickname]);
         break;
 
-      case 4: // RENEW
+      case 4: // RENEW — extend from max(activeUntil, height); bump bond to the renewed UTXO
         await client.query(`
           UPDATE nicknames SET
-            active_until_height = active_until_height + 144000,
-            grace_until_height = grace_until_height + 144000,
-            last_update_txid = $1,
-            updated_at = $2
-          WHERE nickname = $3
-        `, [txid, now, nickname]);
+            active_until_height = GREATEST(active_until_height, $1) + $2,
+            grace_until_height = GREATEST(active_until_height, $1) + $2 + $3,
+            bond_amount_satoshi = COALESCE($4, bond_amount_satoshi),
+            bond_txid = COALESCE($5, bond_txid),
+            bond_vout = COALESCE($6, bond_vout),
+            released = FALSE,
+            bond_claimed = FALSE,
+            status = 'ACTIVE',
+            last_update_txid = $7,
+            updated_at = $8
+          WHERE nickname = $9
+        `, [height, NICK_ACTIVE_BLOCKS, NICK_GRACE_BLOCKS, bondAmountSat, bondTxid, bondVout, txid, now, nickname]);
         break;
 
       case 5: // RELEASE
@@ -403,6 +419,8 @@ export async function upsertNickname({ opType, nickname, ownerPubKey, payoutAddr
         await client.query(`
           UPDATE nicknames SET
             bond_claimed = TRUE,
+            bond_txid = NULL,
+            bond_vout = NULL,
             last_update_txid = $1,
             updated_at = $2
           WHERE nickname = $3

@@ -61,6 +61,18 @@ const useWalletStore = create(
         return keyService.deriveWIF(_mnemonic, addressIndex ?? get().currentAddressIndex);
       },
 
+      // Derive the wallet's owner pubkeys (used to find on-chain names owned by this wallet).
+      getWalletPubkeys: (count = 20) => {
+        if (!_mnemonic) return [];
+        return keyService.derivePublicKeys(_mnemonic, count);
+      },
+
+      // Map an owner pubkey back to the controlling WIF + address index (for managing a name).
+      getWIFForPubkey: (pubkeyHex, count = 20) => {
+        if (!_mnemonic || !pubkeyHex) return null;
+        return keyService.findKeyByPubkey(_mnemonic, pubkeyHex, count);
+      },
+
       getXpub: () => {
         if (!_mnemonic) return null;
         return keyService.deriveXpub(_mnemonic);
